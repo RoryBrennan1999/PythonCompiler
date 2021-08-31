@@ -1,6 +1,7 @@
 ############################################################
 # Scanner for CPL Python Compiler                          #
 # Uses the re module to generate an efficient scanner      #
+# See gram.txt for CPL grammar                             #
 # Written by Rory Brennan 18237606                         #
 # 28/07/2021                                               #
 ############################################################
