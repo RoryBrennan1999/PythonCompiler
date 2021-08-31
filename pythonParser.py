@@ -1,7 +1,7 @@
 ############################################################
 # Parser for CPL Python Compiler                           #
 # Parses through the input and generates an AST            #
-# Written by Rory Brennan 18237606                         #
+# Written by Rory Brennan [18237606]                       #
 # 31/07/2021                                               #
 ############################################################
 
