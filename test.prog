@@ -1,0 +1,9 @@
+PROGRAM test;
+VAR x;
+BEGIN ! start of main
+    IF x >= 0 THEN
+    BEGIN
+        WRITE(x, x - 10);
+    END;
+    READ( x );
+END.
