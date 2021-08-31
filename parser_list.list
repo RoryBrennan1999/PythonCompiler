@@ -1,5 +1,5 @@
 PROGRAM test;
-VAR x;     <<<< Expected VA, got VAR.     <<<< Expected IDENTIFIER, got VAR.     <<<< Expected SEMICOLON, got VAR.     <<<< Expected one of: ['BEGIN', 'ENDOFPROGRAM', 'END', 'ENDOFINPUT', 'PROCEDURE'], got VAR.
+VAR x;
 BEGIN ! start of main
     IF x >= 0 THEN
     BEGIN
