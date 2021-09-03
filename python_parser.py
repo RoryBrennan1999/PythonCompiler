@@ -5,7 +5,7 @@
 # 31/07/2021                                               #
 ############################################################
 
-from pythonScanner import scanner  # Scanner program
+from python_scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 
 # Open input file for scanning
