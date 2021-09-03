@@ -6,5 +6,6 @@
 # 02/09/2021                                               #
 ############################################################
 
-from llvmlite import ir
+import llvmlite.ir as ir
+import llvmlite.binding as llvm
 
