@@ -5,6 +5,7 @@
 # 31/07/2021                                               #
 ############################################################
 
+from abc import ABC
 from python_scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 
@@ -35,10 +36,14 @@ ProcDecFBS = ["ENDOFPROGRAM", "ENDOFINPUT", "END"]
 StatementFS_aug = ["IDENTIFIER", "WHILE", "IF", "READ", "WRITE", "END"]
 StatementFBS = ["SEMICOLON", "ELSE", "ENDOFPROGRAM", "ENDOFINPUT"]
 
+# Abstract Syntax Tree for input program
+ast = []
 
-# Function that generates each AST node
-def generate_node():
-    return
+# AST hierarchy
+# Each node has a dump function that prints the AST
+class ASTNode(object):
+    def dump(self, indent=0):
+        raise NotImplementedError
 
 
 # Reads in the next token by advancing token index
@@ -80,11 +85,6 @@ def synchro(augmented_set, follow_beacon_set):
 def accept(expected_token):
     recovering = 0
 
-    # Error resync code
-    if recovering == 1:
-        while current_token[0] != expected_token and current_token[0] != "ENDOFPROGRAM":
-            get_token()
-
     if current_token[0] == expected_token:
         get_token()
     else:  # Display error message
@@ -95,6 +95,11 @@ def accept(expected_token):
             '\n') + f'     <<<< Expected {expected_token}, got {current_token[0]}.\n'
         # Set flag when error is encountered
         recovering = 1
+
+    # Error resync code
+    if recovering == 1:
+        while current_token[0] != expected_token and current_token[0] != "ENDOFPROGRAM":
+            get_token()
 
 
 # Parse one or more variable declaration
