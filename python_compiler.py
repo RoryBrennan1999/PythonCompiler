@@ -8,4 +8,5 @@
 
 import llvmlite.ir as ir
 import llvmlite.binding as llvm
+from python_parser import ast  # Parser program
 
