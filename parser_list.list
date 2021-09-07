@@ -5,5 +5,5 @@ BEGIN ! start of main
     BEGIN
         WRITE(x, x - 10);
     END;
-    READ( x );
-END.
+    READ( x )
+END.     <<<< Expected SEMICOLON, got END.     <<<< Expected one of: ['SEMICOLON', 'READ', 'ENDOFINPUT', 'ENDOFPROGRAM', 'WHILE', 'ELSE', 'END', 'IF', 'WRITE', 'IDENTIFIER'], got ENDOFPROGRAM.     <<<< Expected END, got ENDOFPROGRAM.

@@ -45,6 +45,41 @@ class ASTNode(object):
     def dump(self, indent=0):
         raise NotImplementedError
 
+class ExprAST(ASTNode):
+    def dump(self, indent=0):
+        pass
+
+
+class NumberExprAST(ExprAST):
+    def __init__(self, val):
+        self.val = val
+
+    def dump(self, indent=0):
+        return '{0}{1}[{2}]'.format(
+            ' ' * indent, self.__class__.__name__, self.val)
+
+
+class VariableExprAST(ExprAST):
+    def __init__(self, name):
+        self.name = name
+
+    def dump(self, indent=0):
+        return '{0}{1}[{2}]'.format(
+            ' ' * indent, self.__class__.__name__, self.name)
+
+    class BinaryExprAST(ExprAST):
+        def __init__(self, op, lhs, rhs):
+            self.op = op
+            self.lhs = lhs
+            self.rhs = rhs
+
+        def dump(self, indent=0):
+            s = '{0}{1}[{2}]\n'.format(
+                ' ' * indent, self.__class__.__name__, self.op)
+            s += self.lhs.dump(indent + 2) + '\n'
+            s += self.rhs.dump(indent + 2)
+            return s
+
 
 # Reads in the next token by advancing token index
 def get_token():
