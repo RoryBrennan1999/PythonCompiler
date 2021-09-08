@@ -1,9 +1,9 @@
 PROGRAM test;
-VAR x
-BEGIN ! start of main     <<<< Expected SEMICOLON, got BEGIN.
+VAR x;
+BEGIN ! start of main
     IF x >= 0 THEN
     BEGIN
-        WRITE(x, x - 10)
-    END;     <<<< Expected SEMICOLON, got END.
+        WRITE(x, x - 10);
+    END;
     READ( x );
 END.

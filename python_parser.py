@@ -4,8 +4,8 @@
 # Written by Rory Brennan [18237606]                       #
 # 31/07/2021                                               #
 ############################################################
-
 from abc import ABC
+
 from python_scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 
@@ -39,46 +39,44 @@ StatementFBS = ["SEMICOLON", "ELSE", "ENDOFPROGRAM", "ENDOFINPUT"]
 # Abstract Syntax Tree for input program
 ast = []
 
+
 # AST hierarchy
 # Each node has a dump function that prints the AST
 class ASTNode(object):
-    def dump(self, indent=0):
-        raise NotImplementedError
+    pass
 
-class ExprAST(ASTNode):
-    def dump(self, indent=0):
-        pass
+
+class ExprAST(ASTNode, ABC):
+    pass
 
 
 class NumberExprAST(ExprAST):
     def __init__(self, val):
         self.val = val
 
-    def dump(self, indent=0):
-        return '{0}{1}[{2}]'.format(
-            ' ' * indent, self.__class__.__name__, self.val)
-
 
 class VariableExprAST(ExprAST):
     def __init__(self, name):
         self.name = name
 
-    def dump(self, indent=0):
-        return '{0}{1}[{2}]'.format(
-            ' ' * indent, self.__class__.__name__, self.name)
 
-    class BinaryExprAST(ExprAST):
-        def __init__(self, op, lhs, rhs):
-            self.op = op
-            self.lhs = lhs
-            self.rhs = rhs
+class BinaryExprAST(ExprAST):
+    def __init__(self, op, lhs, rhs):
+        self.op = op
+        self.lhs = lhs
+        self.rhs = rhs
 
-        def dump(self, indent=0):
-            s = '{0}{1}[{2}]\n'.format(
-                ' ' * indent, self.__class__.__name__, self.op)
-            s += self.lhs.dump(indent + 2) + '\n'
-            s += self.rhs.dump(indent + 2)
-            return s
+
+class ReadExprAST(ExprAST):
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
+
+
+class WriteExprAST(ExprAST):
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
 
 
 # Reads in the next token by advancing token index
@@ -118,13 +116,14 @@ def synchro(augmented_set, follow_beacon_set):
 # lookahead matches this, advances the lookahead and returns.
 # Recovers if error is encountered.
 def accept(expected_token):
-    accept.recovering = 0 # This is the python equivalent of static variable
+    accept.recovering = 0  # This is the python equivalent of static variable
 
     # Error resync code
     if accept.recovering == 1:
         while current_token[0] != expected_token and current_token[0] != "ENDOFPROGRAM":
             get_token()
 
+    # Advance lookahead
     if current_token[0] == expected_token:
         get_token()
     else:  # Display error message
@@ -137,15 +136,16 @@ def accept(expected_token):
         accept.recovering = 1
 
 
-
 # Parse one or more variable declaration
 def parse_decl():
     accept("VAR")
+    ast.append(VariableExprAST(current_token[1]))
     accept("IDENTIFIER")
 
     # Repetition triggered by a ","
     while current_token[0] == "COMMA":
         accept("COMMA")
+        ast.append(VariableExprAST(current_token[1]))
         accept("IDENTIFIER")
 
     accept("SEMICOLON")
@@ -315,12 +315,18 @@ def parse_read():
     accept("LEFTPARENTHESIS")
 
     # Read in each variable in turn
+    arguments = [VariableExprAST(current_token[1])]
     accept("IDENTIFIER")
 
     # Repetition triggered by a ","
     while current_token[0] == "COMMA":
         accept("COMMA")
+        i = + 1
+        arguments[i] = VariableExprAST(current_token[1])
         accept("IDENTIFIER")
+
+    # Insert into AST
+    ast.append(ReadExprAST("READ", arguments))
 
     # End of read statement
     accept("RIGHTPARENTHESIS")
@@ -435,6 +441,25 @@ def parse_program():
     accept("ENDOFPROGRAM")
 
 
+# Test helper - flattens the AST into a sexpr-like nested list.
+def flatten(ast_node):
+    if isinstance(ast_node, NumberExprAST):
+        return ['INTCONST', ast_node.val]
+    elif isinstance(ast_node, VariableExprAST):
+        return ['IDENTIFIER', ast_node.name]
+    elif isinstance(ast_node, BinaryExprAST):
+        return ['Binop', ast_node.op,
+                flatten(ast_node.name.lhs), flatten(ast_node.name.rhs)]
+    elif isinstance(ast_node, ReadExprAST):
+        args = [flatten(arg) for arg in ast_node.args]
+        return ['READ', args]
+    elif isinstance(ast_node, WriteExprAST):
+        args = [flatten(arg) for arg in ast_node.args]
+        return ['WRITE', args]
+    else:
+        raise TypeError('Unknown type in flatten')
+
+
 #  Main: Program entry point
 # "parse_program" to start the parse
 if __name__ == "__main__":
@@ -450,6 +475,10 @@ if __name__ == "__main__":
 
     # Write to list file
     listFile.writelines(line_data)
+
+    # Print AST
+    for node in ast:
+        print(flatten(node))
 
     # Close all files when done
     inputFile.close()
