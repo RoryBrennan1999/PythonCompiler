@@ -118,7 +118,12 @@ def synchro(augmented_set, follow_beacon_set):
 # lookahead matches this, advances the lookahead and returns.
 # Recovers if error is encountered.
 def accept(expected_token):
-    recovering = 0
+    accept.recovering = 0 # This is the python equivalent of static variable
+
+    # Error resync code
+    if accept.recovering == 1:
+        while current_token[0] != expected_token and current_token[0] != "ENDOFPROGRAM":
+            get_token()
 
     if current_token[0] == expected_token:
         get_token()
@@ -129,12 +134,8 @@ def accept(expected_token):
         line_data[current_token[2] - 1] = line_data[current_token[2] - 1].rstrip(
             '\n') + f'     <<<< Expected {expected_token}, got {current_token[0]}.\n'
         # Set flag when error is encountered
-        recovering = 1
+        accept.recovering = 1
 
-    # Error resync code
-    if recovering == 1:
-        while current_token[0] != expected_token and current_token[0] != "ENDOFPROGRAM":
-            get_token()
 
 
 # Parse one or more variable declaration

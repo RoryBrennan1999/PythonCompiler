@@ -1,9 +1,9 @@
 PROGRAM test;
-VAR x;
-BEGIN ! start of main
+VAR x
+BEGIN ! start of main     <<<< Expected SEMICOLON, got BEGIN.
     IF x >= 0 THEN
     BEGIN
-        WRITE(x, x - 10);
-    END;
-    READ( x )
-END.     <<<< Expected SEMICOLON, got END.     <<<< Expected one of: ['SEMICOLON', 'READ', 'ENDOFINPUT', 'ENDOFPROGRAM', 'WHILE', 'ELSE', 'END', 'IF', 'WRITE', 'IDENTIFIER'], got ENDOFPROGRAM.     <<<< Expected END, got ENDOFPROGRAM.
+        WRITE(x, x - 10)
+    END;     <<<< Expected SEMICOLON, got END.
+    READ( x );
+END.
