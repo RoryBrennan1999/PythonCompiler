@@ -39,7 +39,6 @@ StatementFBS = ["SEMICOLON", "ELSE", "ENDOFPROGRAM", "ENDOFINPUT"]
 # Abstract Syntax Tree for input program
 ast = []
 
-
 # AST hierarchy
 # Each node has a dump function that prints the AST
 class ASTNode(object):
@@ -78,6 +77,8 @@ class WriteExprAST(ExprAST):
         self.name = name
         self.args = args
 
+# Temporary Binary Expression node for appending to AST
+temp_expression_node = BinaryExprAST(None, None, None)
 
 # Reads in the next token by advancing token index
 def get_token():
@@ -178,9 +179,23 @@ def parse_parameters():
 # parse_subterm handles variables, integer constants and some arithmetic
 def parse_subterm():
     if current_token[0] == "IDENTIFIER":
+        temp_token = current_token[1]
         accept("IDENTIFIER")
+        # Simple if statement to check whether current token is LHS or RHS (and also that it is a binary expression)
+        if current_token[0] == "SUBTRACT" or current_token[0] == "ADD" or current_token[0] == "MULTIPLY" or current_token[0] == "DIVIDE" or current_token[0] == "RIGHTPARENTHESIS":
+            if temp_expression_node.lhs is None:
+                temp_expression_node.lhs = VariableExprAST(temp_token)
+            else:
+                temp_expression_node.rhs = VariableExprAST(temp_token)
     elif current_token[0] == "INTCONST":
+        temp_token = current_token[1]
         accept("INTCONST")
+        # Simple if statement to check whether current token is LHS or RHS
+        if current_token[0] == "SUBTRACT" or current_token[0] == "ADD" or current_token[0] == "MULTIPLY" or current_token[0] == "DIVIDE" or current_token[0] == "RIGHTPARENTHESIS":
+            if temp_expression_node.lhs is None:
+                temp_expression_node.lhs = NumberExprAST(temp_token)
+            else:
+                temp_expression_node.rhs = NumberExprAST(temp_token)
     else:
         accept("LEFTPARENTHESIS")
         parse_expression()
@@ -201,6 +216,7 @@ def parse_compound_term():
     temp_token = current_token
     # Check for simple arithmetic +/-
     while current_token[0] == "MULTIPLY" or current_token[0] == "DIVIDE":
+        temp_expression_node.op = current_token[0]
         accept(temp_token[0])
         # parse_compound_term() goes through * or /
         parse_term()
@@ -213,9 +229,14 @@ def parse_expression():
     temp_token = current_token
     # Check for simple arithmetic +/-
     while current_token[0] == "ADD" or current_token[0] == "SUBTRACT":
+        temp_expression_node.op = current_token[0]
         accept(temp_token[0])
         # parse_compound_term() goes through * or /
         parse_compound_term()
+
+    # Simple check so that no duplicate entries occur
+    if temp_expression_node not in ast and temp_expression_node.op is not None:
+        ast.append(temp_expression_node)
 
 
 # Parse boolean expressions
@@ -448,8 +469,8 @@ def flatten(ast_node):
     elif isinstance(ast_node, VariableExprAST):
         return ['IDENTIFIER', ast_node.name]
     elif isinstance(ast_node, BinaryExprAST):
-        return ['Binop', ast_node.op,
-                flatten(ast_node.name.lhs), flatten(ast_node.name.rhs)]
+        return ['OP', ast_node.op,
+                flatten(ast_node.lhs), flatten(ast_node.rhs)]
     elif isinstance(ast_node, ReadExprAST):
         args = [flatten(arg) for arg in ast_node.args]
         return ['READ', args]
@@ -457,7 +478,7 @@ def flatten(ast_node):
         args = [flatten(arg) for arg in ast_node.args]
         return ['WRITE', args]
     else:
-        raise TypeError('Unknown type in flatten')
+        raise TypeError('Unknown type in flatten()')
 
 
 #  Main: Program entry point
@@ -471,12 +492,13 @@ if __name__ == "__main__":
     parse_program()
 
     # Parsing done
-    print("Parsing finished.")
+    print("Parsing finished.\n")
 
     # Write to list file
     listFile.writelines(line_data)
 
     # Print AST
+    print("Abstract Syntax Tree:")
     for node in ast:
         print(flatten(node))
 
