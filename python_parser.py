@@ -80,6 +80,9 @@ class WriteExprAST(ExprAST):
 # Temporary Binary Expression node for appending to AST
 temp_expression_node = BinaryExprAST(None, None, None)
 
+# arguments global array for function/write parameters
+func_write_args =[]
+
 # Reads in the next token by advancing token index
 def get_token():
     # Increment index
@@ -187,6 +190,8 @@ def parse_subterm():
                 temp_expression_node.lhs = VariableExprAST(temp_token)
             else:
                 temp_expression_node.rhs = VariableExprAST(temp_token)
+        else:
+            func_write_args.append(VariableExprAST(temp_token))  # Append onto arguments array
     elif current_token[0] == "INTCONST":
         temp_token = current_token[1]
         accept("INTCONST")
@@ -196,6 +201,8 @@ def parse_subterm():
                 temp_expression_node.lhs = NumberExprAST(temp_token)
             else:
                 temp_expression_node.rhs = NumberExprAST(temp_token)
+        else:
+            func_write_args.append(NumberExprAST(temp_token))  # Append onto arguments array
     else:
         accept("LEFTPARENTHESIS")
         parse_expression()
@@ -235,8 +242,8 @@ def parse_expression():
         parse_compound_term()
 
     # Simple check so that no duplicate entries occur
-    if temp_expression_node not in ast and temp_expression_node.op is not None:
-        ast.append(temp_expression_node)
+    # if temp_expression_node not in ast and temp_expression_node.op is not None:
+        # ast.append(temp_expression_node)
 
 
 # Parse boolean expressions
@@ -355,17 +362,25 @@ def parse_read():
 
 # Parse WRITE block
 def parse_write():
+    func_write_args.clear() # Clear arguments array
     # Parse through Write call
     accept("WRITE")
     accept("LEFTPARENTHESIS")
 
     # Let ParseExpression() deal with variables & arithmetic in Write call
     parse_expression()
+    if temp_expression_node.op is not None and temp_expression_node not in func_write_args:
+        func_write_args.append(temp_expression_node)
 
     # Repetition triggered by a ","
     while current_token[0] == "COMMA":
         accept("COMMA")
         parse_expression()
+        if temp_expression_node.op is not None and temp_expression_node not in func_write_args:
+            func_write_args.append(temp_expression_node)
+
+    # Insert into AST
+    ast.append(WriteExprAST("WRITE", func_write_args))
 
     # End of write statement
     accept("RIGHTPARENTHESIS")
