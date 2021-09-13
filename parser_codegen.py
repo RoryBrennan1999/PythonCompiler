@@ -6,7 +6,8 @@
 ############################################################
 
 from abc import ABC
-import llvmlite # llvmlite for code generation
+import llvmlite.ir as ir
+import llvmlite.binding as llvm # llvmlite for code generation
 from scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 
@@ -486,7 +487,15 @@ def parse_program():
 ############################################################
 
 def codegen():
-    pass
+    # Initialize code generator
+    module = ir.Module()
+
+    # Current IR builder.
+    builder = None
+
+    # Manages a symbol table while a function is being codegen'd. Maps var
+    # names to ir.Value.
+    func_symtab = {}
 
 
 # Test helper - flattens the AST into a sexpr-like nested list.
