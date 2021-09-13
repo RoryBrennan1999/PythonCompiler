@@ -4,9 +4,10 @@
 # Written by Rory Brennan [18237606]                       #
 # 31/07/2021                                               #
 ############################################################
-from abc import ABC
 
-from python_scanner import scanner  # Scanner program
+from abc import ABC
+import llvmlite # llvmlite for code generation
+from scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 
 # Open input file for scanning
@@ -475,6 +476,17 @@ def parse_program():
 
     # '.' has name ENDOFPROGRAM
     accept("ENDOFPROGRAM")
+
+############################################################
+# Code Generator for CPL Python Compiler                   #
+# Takes AST from parser and generates                      #
+# machine code using llvmlite                              #
+# Written by Rory Brennan [18237606]                       #
+# 02/09/2021                                               #
+############################################################
+
+def codegen():
+    pass
 
 
 # Test helper - flattens the AST into a sexpr-like nested list.
