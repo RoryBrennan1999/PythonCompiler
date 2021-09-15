@@ -1,6 +1,6 @@
 PROGRAM test;
 VAR x;
 BEGIN ! start of main
-    WRITE(x, x - 10);
+    WRITE( x, x - 10 );
     READ( x );
 END.

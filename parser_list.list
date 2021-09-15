@@ -1,6 +1,9 @@
-PROGRAM test;
+PROGRAM test3;
 VAR x;
-BEGIN ! start of main
-    WRITE(x, x - 10);
-    READ( x );
+BEGIN
+    x := 4;
+    WHILE x > 0 DO BEGIN
+	    WRITE( x, x - 1 );
+        B := x - 1;
+    END;
 END.
