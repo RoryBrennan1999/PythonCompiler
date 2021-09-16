@@ -41,6 +41,9 @@ StatementFBS = ["SEMICOLON", "ELSE", "ENDOFPROGRAM", "ENDOFINPUT"]
 # Abstract Syntax Tree for input program
 ast = []
 
+# Global list of operators
+operators = ["MULTIPLY", "ADD", "SUBTRACT", "DIVIDE"]
+
 # AST hierarchy
 # Each node has a dump function that prints the AST
 class ASTNode(object):
@@ -99,6 +102,9 @@ temp_expression_node = BinaryExprAST(None, None, None)
 
 # arguments global array for function/write parameters
 func_write_args = []
+
+# global flag to signal that parser is write call
+write_flag = False
 
 # Reads in the next token by advancing token index
 def get_token():
@@ -201,21 +207,29 @@ def parse_subterm():
     if current_token[0] == "IDENTIFIER":
         temp_token = current_token[1]
         accept("IDENTIFIER")
-        # Simple if statement to check whether current token is LHS or RHS or a lone standing variable/integer
-        if current_token[0] == "SUBTRACT" or current_token[0] == "ADD" or current_token[0] == "MULTIPLY" or current_token[0] == "DIVIDE" or current_token[0] == "RIGHTPARENTHESIS" or current_token[0] == "COMMA":
+        # if statement to check whether current token is LHS or RHS or a lone standing variable/integer (write call only)
+        if write_flag:
             if temp_expression_node.lhs is None and current_token[0] != "COMMA" and current_token[0] != "RIGHTPARENTHESIS":
                 temp_expression_node.lhs = VariableExprAST(temp_token)
             elif temp_expression_node.lhs is not None and temp_expression_node.rhs is None:
                 temp_expression_node.rhs = VariableExprAST(temp_token)
+            elif current_token[0] is operators and temp_expression_node.lhs is not None and temp_expression_node.rhs is not None:
+                temp_expression_node.lhs = BinaryExprAST(temp_expression_node.op, temp_expression_node.lhs, temp_expression_node.rhs)
+                temp_expression_node.op = current_token[0]
+                temp_expression_node.rhs = None
             else:
                 func_write_args.append(VariableExprAST(temp_token))  # Append onto arguments array
     elif current_token[0] == "INTCONST":
         temp_token = current_token[1]
         accept("INTCONST")
-        # if statement to check whether current token is LHS or RHS or a lone standing variable/integer
-        if current_token[0] == "SUBTRACT" or current_token[0] == "ADD" or current_token[0] == "MULTIPLY" or current_token[0] == "DIVIDE" or current_token[0] == "RIGHTPARENTHESIS" or current_token[0] == "COMMA":
+        # if statement to check whether current token is LHS or RHS or a lone standing variable/integer (write call only)
+        if write_flag:
             if temp_expression_node.lhs is None and current_token[0] != "COMMA" and current_token[0] != "RIGHTPARENTHESIS":
                 temp_expression_node.lhs = NumberExprAST(temp_token)
+            elif current_token[0] in operators and temp_expression_node.rhs is not None:
+                temp_expression_node.lhs = BinaryExprAST(temp_expression_node.op, temp_expression_node.lhs, temp_expression_node.rhs)
+                temp_expression_node.op = current_token[0]
+                temp_expression_node.rhs = None
             elif temp_expression_node.lhs is not None and temp_expression_node.rhs is None:
                 temp_expression_node.rhs = NumberExprAST(temp_token)
             else:
@@ -237,11 +251,14 @@ def parse_term():
 def parse_compound_term():
     parse_term()
 
-    temp_token = current_token
+    temp_token = current_token[0]
     # Check for simple arithmetic +/-
     while current_token[0] == "MULTIPLY" or current_token[0] == "DIVIDE":
-        temp_expression_node.op = current_token[0]
-        accept(temp_token[0])
+        accept(temp_token)
+
+        if temp_expression_node.op is None:
+            temp_expression_node.op = temp_token
+
         # parse_compound_term() goes through * or /
         parse_term()
 
@@ -250,11 +267,14 @@ def parse_compound_term():
 def parse_expression():
     parse_compound_term()
 
-    temp_token = current_token
+    temp_token = current_token[0]
     # Check for simple arithmetic +/-
     while current_token[0] == "ADD" or current_token[0] == "SUBTRACT":
-        temp_expression_node.op = current_token[0]
-        accept(temp_token[0])
+        accept(temp_token)
+
+        if temp_expression_node.op is None:
+            temp_expression_node.op = temp_token
+
         # parse_compound_term() goes through * or /
         parse_compound_term()
 
@@ -382,6 +402,10 @@ def parse_write():
     # Clear arguments array
     func_write_args.clear()
 
+    # Signal flag
+    global write_flag
+    write_flag = True
+
     # Parse through Write call
     accept("WRITE")
     accept("LEFTPARENTHESIS")
@@ -404,6 +428,8 @@ def parse_write():
 
     # End of write statement
     accept("RIGHTPARENTHESIS")
+
+    write_flag = False
 
 
 # Parse various types of statements
