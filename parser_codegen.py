@@ -551,7 +551,7 @@ def parse_program():
 # 02/09/2021                                               #
 ############################################################
 
-def codegen():
+def codegen( ast_pre_compilation ):
     # Initialize code generator
     module = ir.Module()
 
@@ -561,6 +561,15 @@ def codegen():
     # Manages a symbol table while a function is being codegen'd. Maps var
     # names to ir.Value.
     func_symtab = {}
+
+    # Loop through ast and compile
+    for ast_node in ast:
+        if isinstance(ast_node, NumberExprAST):
+            builder.append(ir.Constant(ir.DoubleType(), float(ast_node.val)))
+        elif isinstance(ast_node, VariableExprAST):
+            func_symtab[ast_node.val] = ast_node
+
+    return module
 
 
 # Test helper - flattens the AST into a sexpr-like nested list.
@@ -605,6 +614,14 @@ if __name__ == "__main__":
     print("Abstract Syntax Tree:")
     for node in ast:
         print(flatten(node))
+
+    # Begin code generation
+    llvm.initialize()
+    llvm.initialize_native_target()
+    llvm.initialize_native_asmprinter()
+
+    # codegen_module = codegen(ast)
+    # print(codegen_module)
 
     # Close all files when done
     inputFile.close()
