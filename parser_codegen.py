@@ -101,7 +101,7 @@ class FunctionAST(ASTNode):
 temp_expression_node = BinaryExprAST(None, None, None)
 
 # arguments global array for function/write parameters
-func_write_args = []
+func_write_args = list()
 
 # global flag to signal that parser is write call
 write_flag = False
@@ -201,55 +201,71 @@ def parse_parameters():
 
     accept("RIGHTPARENTHESIS")
 
+# Parse write call parameters
+def parse_write_par(temp_token):
+
+    # if statement to check whether current token is LHS or RHS or a lone standing variable/integer (write call only)
+    if temp_token[0] == "IDENTIFIER":
+        if temp_expression_node.lhs is None and current_token[0] != "COMMA" and current_token[0] != "RIGHTPARENTHESIS":
+            temp_expression_node.lhs = VariableExprAST(temp_token[1])
+        elif temp_expression_node.lhs is not None and temp_expression_node.rhs is None:
+            temp_expression_node.rhs = VariableExprAST(temp_token[1])
+        else:
+            func_write_args.append(VariableExprAST(temp_token[1]))  # Append onto arguments array
+
+        # If statement for recursion when dealing with large arithmetic expressions
+        if current_token[
+            0] in operators and temp_expression_node.op is not None and temp_expression_node.rhs is not None:
+            temp_expression_node.lhs = BinaryExprAST(temp_expression_node.op, temp_expression_node.lhs,
+                                                     temp_expression_node.rhs)
+            temp_expression_node.op = current_token[0]
+            temp_expression_node.rhs = None
+        elif current_token[0] == "COMMA" and temp_expression_node.op is not None:
+            func_write_args.append(
+                BinaryExprAST(temp_expression_node.op, temp_expression_node.lhs, temp_expression_node.rhs))
+            temp_expression_node.rhs = None
+            temp_expression_node.lhs = None
+
+    # if statement to check whether current token is LHS or RHS or a lone standing variable/integer (write call only)
+    elif temp_token[0] == "INTCONST":
+        if temp_expression_node.lhs is None and current_token[0] != "COMMA" and current_token[0] != "RIGHTPARENTHESIS":
+            temp_expression_node.lhs = NumberExprAST(temp_token[1])
+        elif temp_expression_node.lhs is not None and temp_expression_node.rhs is None:
+            temp_expression_node.rhs = NumberExprAST(temp_token[1])
+        else:
+            func_write_args.append(NumberExprAST(temp_token[1]))  # Append onto arguments array
+
+        # If statement for recursion when dealing with large arithmetic expressions
+        if current_token[
+            0] in operators and temp_expression_node.op is not None and temp_expression_node.rhs is not None:
+            temp_expression_node.lhs = BinaryExprAST(temp_expression_node.op, temp_expression_node.lhs,
+                                                     temp_expression_node.rhs)
+            temp_expression_node.op = current_token[0]
+            temp_expression_node.rhs = None
+        elif current_token[0] == "COMMA" and temp_expression_node.op is not None:
+            func_write_args.append(
+                BinaryExprAST(temp_expression_node.op, temp_expression_node.lhs, temp_expression_node.rhs))
+            temp_expression_node.rhs = None
+            temp_expression_node.lhs = None
+
 
 # parse_subterm handles variables, integer constants and some arithmetic
 def parse_subterm():
     if current_token[0] == "IDENTIFIER":
-        temp_token = current_token[1]
+        temp_token = current_token
         accept("IDENTIFIER")
-        # if statement to check whether current token is LHS or RHS or a lone standing variable/integer (write call only)
-        if write_flag:
-            if temp_expression_node.lhs is None and current_token[0] != "COMMA" and current_token[0] != "RIGHTPARENTHESIS":
-                temp_expression_node.lhs = VariableExprAST(temp_token)
-            elif temp_expression_node.lhs is not None and temp_expression_node.rhs is None:
-                temp_expression_node.rhs = VariableExprAST(temp_token)
-            elif VariableExprAST(temp_token) not in func_write_args and temp_expression_node.op is None:
-                func_write_args.append(VariableExprAST(temp_token))  # Append onto arguments array
 
-            # If statement for recursion when dealing with large arithmetic expressions
-            if current_token[0] in operators and temp_expression_node.op is not None and temp_expression_node.rhs is not None:
-                temp_expression_node.lhs = BinaryExprAST(temp_expression_node.op, temp_expression_node.lhs, temp_expression_node.rhs)
-                temp_expression_node.op = current_token[0]
-                temp_expression_node.rhs = None
-            elif current_token[0] == "COMMA" and temp_expression_node.op is not None:
-                func_write_args.append(temp_expression_node)
-                temp_expression_node.op = None
-                temp_expression_node.rhs = None
-                temp_expression_node.lhs = None
+        # Parse write parameters
+        if write_flag:
+            parse_write_par(temp_token)
 
     elif current_token[0] == "INTCONST":
-        temp_token = current_token[1]
-
+        temp_token = current_token
         accept("INTCONST")
-        # if statement to check whether current token is LHS or RHS or a lone standing variable/integer (write call only)
-        if write_flag:
-            if temp_expression_node.lhs is None and current_token[0] != "COMMA" and current_token[0] != "RIGHTPARENTHESIS":
-                temp_expression_node.lhs = NumberExprAST(temp_token)
-            elif temp_expression_node.lhs is not None and temp_expression_node.rhs is None:
-                temp_expression_node.rhs = NumberExprAST(temp_token)
-            elif NumberExprAST(temp_token) not in func_write_args and temp_expression_node.op is None:
-                func_write_args.append(NumberExprAST(temp_token))  # Append onto arguments array
 
-            # If statement for recursion when dealing with large arithmetic expressions
-            if current_token[0] in operators and temp_expression_node.op is not None and temp_expression_node.rhs is not None:
-                temp_expression_node.lhs = BinaryExprAST(temp_expression_node.op, temp_expression_node.lhs, temp_expression_node.rhs)
-                temp_expression_node.op = current_token[0]
-                temp_expression_node.rhs = None
-            elif current_token[0] == "COMMA" and temp_expression_node.op is not None:
-                func_write_args.append(temp_expression_node)
-                temp_expression_node.op = None
-                temp_expression_node.rhs = None
-                temp_expression_node.lhs = None
+        # Parse write parameters
+        if write_flag:
+            parse_write_par(temp_token)
 
     else:
         accept("LEFTPARENTHESIS")
@@ -273,8 +289,8 @@ def parse_compound_term():
     while current_token[0] == "MULTIPLY" or current_token[0] == "DIVIDE":
         accept(temp_token)
 
-        if temp_expression_node.op is None:
-            temp_expression_node.op = temp_token
+        # Assign object operator value
+        temp_expression_node.op = temp_token
 
         # parse_compound_term() goes through * or /
         parse_term()
@@ -289,8 +305,8 @@ def parse_expression():
     while current_token[0] == "ADD" or current_token[0] == "SUBTRACT":
         accept(temp_token)
 
-        if temp_expression_node.op is None:
-            temp_expression_node.op = temp_token
+        # Assign object operator value
+        temp_expression_node.op = temp_token
 
         # parse_compound_term() goes through * or /
         parse_compound_term()
@@ -403,8 +419,7 @@ def parse_read():
     # Repetition triggered by a ","
     while current_token[0] == "COMMA":
         accept("COMMA")
-        i = + 1
-        arguments[i] = VariableExprAST(current_token[1])
+        arguments.append(VariableExprAST(current_token[1]))
         accept("IDENTIFIER")
 
     # Insert into AST
@@ -416,9 +431,9 @@ def parse_read():
 
 # Parse WRITE block
 def parse_write():
+
     # Clear arguments arrays
     func_write_args.clear()
-    temp_expression_node.clear()
 
     # Signal flag
     global write_flag
@@ -431,18 +446,14 @@ def parse_write():
     # Let ParseExpression() deal with variables & arithmetic in Write call
     parse_expression()
 
-    # Append binary expression node onto arguments list
-    if temp_expression_node not in func_write_args and temp_expression_node.op is not None:
-        func_write_args.append(temp_expression_node)
-
     # Repetition triggered by a ","
     while current_token[0] == "COMMA":
         accept("COMMA")
         parse_expression()
 
-        # Append binary expression node onto arguments list
-        if temp_expression_node not in func_write_args and temp_expression_node.op is not None:
-            func_write_args.append(temp_expression_node)
+    # Append binary expression node onto arguments list
+    if temp_expression_node.lhs is not None:
+        func_write_args.append(temp_expression_node)
 
     # Insert into AST
     ast.append(WriteExprAST("WRITE", func_write_args))
@@ -450,6 +461,7 @@ def parse_write():
     # End of write statement
     accept("RIGHTPARENTHESIS")
 
+    # End of write call
     write_flag = False
 
 
@@ -551,7 +563,7 @@ def parse_program():
 # 02/09/2021                                               #
 ############################################################
 
-def codegen( ast_pre_compilation ):
+def codegen():
     # Initialize code generator
     module = ir.Module()
 
