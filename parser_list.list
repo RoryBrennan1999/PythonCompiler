@@ -1,6 +1,7 @@
 PROGRAM test;
 VAR x;
 BEGIN ! start of main
-    WRITE( x , z + 20 * y );
-    READ( x , y);
+    WRITE( x , x - 10 );
+    READ( x );
+    y := 10 + 5;
 END.

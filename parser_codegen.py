@@ -87,21 +87,19 @@ class WriteExprAST(ExprAST):
         self.name = name
         self.args = args
 
-class CallExprAST(ExprAST):
-    def __init__(self, callee, args):
-        self.callee = callee
+class BinaryAssignAST(ExprAST):
+    def __init__(self, name, args):
+        self.name = name
         self.args = args
-
-class FunctionAST(ASTNode):
-    def __init__(self, proto, body):
-        self.proto = proto
-        self.body = body
 
 # Temporary Binary Expression node for appending to AST
 temp_expression_node = BinaryExprAST(None, None, None)
 
 # arguments global array for function/write parameters
 func_write_args = list()
+
+# Blank object of binary expression for assignment
+binary_expr = BinaryExprAST(None, None, None)
 
 # global flag to signal that parser is write call
 write_flag = False
@@ -311,10 +309,6 @@ def parse_expression():
         # parse_compound_term() goes through * or /
         parse_compound_term()
 
-    # Simple check so that no duplicate entries occur
-    # if temp_expression_node not in ast and temp_expression_node.op is not None:
-        # ast.append(temp_expression_node)
-
 
 # Parse boolean expressions
 def parse_boolean_expressions():
@@ -357,25 +351,55 @@ def parse_proc_call_list():
 
     accept("RIGHTPARENTHESIS")
 
+# Parse binary expression assignment
+def parse_binary_assignment(identifier):
+
+    if current_token[0] == "IDENTIFIER":
+        if binary_expr.lhs is None:
+            binary_expr.lhs = VariableExprAST(current_token[1])
+        elif binary_expr.rhs is None and binary_expr.lhs is not None:
+            binary_expr.rhs = VariableExprAST(current_token[1])
+        accept("IDENTIFIER")
+        parse_binary_assignment(identifier)
+    elif current_token[0] == "INTCONST":
+        if binary_expr.lhs is None:
+            binary_expr.lhs = NumberExprAST(current_token[1])
+        elif binary_expr.rhs is None and binary_expr.lhs is not None:
+            binary_expr.rhs = NumberExprAST(current_token[1])
+        accept("INTCONST")
+        parse_binary_assignment(identifier)
+
+    # Check for operators and recursively call
+    while current_token[0] in operators:
+        binary_expr.op = current_token[0]
+        accept(current_token[0])
+        parse_binary_assignment(identifier)
+
 
 # Parse assignment
-def parse_assignment():
+def parse_assignment(identifier):
     accept("ASSIGNMENT")
-    parse_expression()
+    parse_binary_assignment(identifier)
+
+    # Append binary assignment onto AST
+    args = [binary_expr]
+    if BinaryAssignAST(identifier, args) not in ast:
+        ast.append(BinaryAssignAST(identifier, args))
 
 
 # Parse simple statement which can be an assignment or a procedure call
-def parse_rest_of_statement():
+def parse_rest_of_statement(temp_token):
     if current_token[0] == "LEFTPARENTHESIS":
         parse_proc_call_list()
     elif current_token[0] == "ASSIGNMENT":
-        parse_assignment()
+        parse_assignment(temp_token)
 
 
 # Parse simple statement
 def parse_simple_statement():
+    temp_token = current_token[1]
     accept("IDENTIFIER")
-    parse_rest_of_statement()
+    parse_rest_of_statement(temp_token)
 
 
 # Parse WHILE block
@@ -599,9 +623,9 @@ def flatten(ast_node):
     elif isinstance(ast_node, WriteExprAST):
         args = [flatten(arg) for arg in ast_node.args]
         return ['WRITE', args]
-    elif isinstance(ast, CallExprAST):
-        args = [flatten(arg) for arg in ast.args]
-        return ['Call', ast.callee, args]
+    elif isinstance(ast_node, BinaryAssignAST):
+        args = [flatten(arg) for arg in ast_node.args]
+        return ['STORE', ast_node.name, args]
     else:
         raise TypeError('Unknown type in flatten()')
 
