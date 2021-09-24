@@ -88,15 +88,15 @@ class WriteExprAST(ExprAST):
         self.args = args
 
 class BinaryAssignAST(ExprAST):
-    def __init__(self, name, args):
-        self.name = name
+    def __init__(self, identifier, args):
+        self.identifier = identifier
         self.args = args
-
-# Temporary Binary Expression node for appending to AST
-temp_expression_node = BinaryExprAST(None, None, None)
 
 # arguments global array for function/write parameters
 func_write_args = list()
+
+# Temporary Binary Expression node for appending to AST (write call only)
+temp_expression_node = BinaryExprAST(None, None, None)
 
 # Blank object of binary expression for assignment
 binary_expr = BinaryExprAST(None, None, None)
@@ -371,20 +371,39 @@ def parse_binary_assignment(identifier):
 
     # Check for operators and recursively call
     while current_token[0] in operators:
-        binary_expr.op = current_token[0]
+        if binary_expr.op is None:
+            binary_expr.op = current_token[0]
+        else: # This covers expressions with two or more operators
+            binary_expr.lhs = BinaryExprAST(binary_expr.op, binary_expr.lhs, binary_expr.rhs)
+            binary_expr.op = current_token[0]
+            binary_expr.rhs = None
         accept(current_token[0])
         parse_binary_assignment(identifier)
 
 
 # Parse assignment
 def parse_assignment(identifier):
+    # Reset binary expressions
+    binary_expr.op = None
+    binary_expr.lhs = None
+    binary_expr.rhs = None
+
     accept("ASSIGNMENT")
+    temp_token = current_token
     parse_binary_assignment(identifier)
 
+    # If statement to check for single identifier/number or binary expression
+    args = []
+    if binary_expr.op is not None:
+        args = [BinaryExprAST(binary_expr.op, binary_expr.lhs, binary_expr.rhs)]
+    else:
+        if temp_token[0] == "IDENTIFIER":
+            args = [VariableExprAST(temp_token[1])]
+        elif temp_token[0] == "INTCONST":
+            args = [NumberExprAST(temp_token[1])]
+
     # Append binary assignment onto AST
-    args = [binary_expr]
-    if BinaryAssignAST(identifier, args) not in ast:
-        ast.append(BinaryAssignAST(identifier, args))
+    ast.append(BinaryAssignAST(identifier, args))
 
 
 # Parse simple statement which can be an assignment or a procedure call
@@ -625,7 +644,7 @@ def flatten(ast_node):
         return ['WRITE', args]
     elif isinstance(ast_node, BinaryAssignAST):
         args = [flatten(arg) for arg in ast_node.args]
-        return ['STORE', ast_node.name, args]
+        return ['STORE', ast_node.identifier, args]
     else:
         raise TypeError('Unknown type in flatten()')
 
