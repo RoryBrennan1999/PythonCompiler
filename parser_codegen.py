@@ -92,6 +92,11 @@ class BinaryAssignAST(ExprAST):
         self.identifier = identifier
         self.args = args
 
+class FunctionAST(ASTNode):
+    def __init__(self, proto, body):
+        self.proto = proto
+        self.body = body
+
 # arguments global array for function/write parameters
 func_write_args = list()
 
@@ -379,9 +384,7 @@ def parse_binary_assignment(identifier):
 # Parse assignment
 def parse_assignment(identifier):
     # Reset binary expressions
-    binary_expr.op = None
-    binary_expr.lhs = None
-    binary_expr.rhs = None
+    binary_expr.clear()
 
     accept("ASSIGNMENT")
     temp_token = current_token
@@ -469,6 +472,8 @@ def parse_read():
 
 # Parse WRITE block
 def parse_write():
+    # Reset binary expressions
+    binary_expr.clear()
 
     # Clear arguments arrays
     func_write_args.clear()
