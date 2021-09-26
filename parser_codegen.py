@@ -5,7 +5,30 @@
 # 31/07/2021                                               #
 ############################################################
 
-from abc import ABC
+# AST nodes
+from ast_objects import (
+    NumberExprAST,
+    VariableExprAST,
+    ReadExprAST,
+    WriteExprAST,
+    BinaryAssignAST,
+    BinaryExprAST,
+    FunctionAST,
+)
+
+# Error resynchronisation sets
+from synchronise_sets import (
+    operators, # List of operator keywords
+    ProgramFS1_aug,
+    ProgramFS2_aug,
+    ProgramFBS,
+    ProcDecFS1_aug,
+    ProcDecFS2_aug,
+    ProcDecFBS,
+    StatementFS_aug,
+    StatementFBS,
+)
+
 import llvmlite.ir as ir
 import llvmlite.binding as llvm # llvmlite for code generation
 from scanner import scanner  # Scanner program
@@ -28,74 +51,8 @@ line_data = inputFile.readlines()
 listFileName = sys.argv[2]
 listFile = open(listFileName, 'w')
 
-# Synchronise sets
-ProgramFS1_aug = ["VAR", "PROCEDURE", "BEGIN"]
-ProgramFS2_aug = ["PROCEDURE", "BEGIN"]
-ProgramFBS = ["ENDOFINPUT", "ENDOFPROGRAM", "END"]
-ProcDecFS1_aug = ["VAR", "PROCEDURE", "BEGIN"]
-ProcDecFS2_aug = ["PROCEDURE", "BEGIN"]
-ProcDecFBS = ["ENDOFPROGRAM", "ENDOFINPUT", "END"]
-StatementFS_aug = ["IDENTIFIER", "WHILE", "IF", "READ", "WRITE", "END"]
-StatementFBS = ["SEMICOLON", "ELSE", "ENDOFPROGRAM", "ENDOFINPUT"]
-
 # Abstract Syntax Tree for input program
 ast = []
-
-# Global list of operators
-operators = ["MULTIPLY", "ADD", "SUBTRACT", "DIVIDE"]
-
-# AST hierarchy
-# Each node has a dump function that prints the AST
-class ASTNode(object):
-    pass
-
-
-class ExprAST(ASTNode, ABC):
-    pass
-
-
-class NumberExprAST(ExprAST):
-    def __init__(self, val):
-        self.val = val
-
-
-class VariableExprAST(ExprAST):
-    def __init__(self, val):
-        self.val = val
-
-
-class BinaryExprAST(ExprAST):
-    def __init__(self, op, lhs, rhs):
-        self.op = op
-        self.lhs = lhs
-        self.rhs = rhs
-
-    def clear(self):
-        self.op = None
-        self.lhs = None
-        self.rhs = None
-
-
-class ReadExprAST(ExprAST):
-    def __init__(self, name, args):
-        self.name = name
-        self.args = args
-
-
-class WriteExprAST(ExprAST):
-    def __init__(self, name, args):
-        self.name = name
-        self.args = args
-
-class BinaryAssignAST(ExprAST):
-    def __init__(self, identifier, args):
-        self.identifier = identifier
-        self.args = args
-
-class FunctionAST(ASTNode):
-    def __init__(self, proto, body):
-        self.proto = proto
-        self.body = body
 
 # arguments global array for function/write parameters
 func_write_args = list()
