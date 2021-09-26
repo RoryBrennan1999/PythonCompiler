@@ -60,6 +60,9 @@ func_write_args = list()
 # Blank object of binary expression for assignment/write calls
 binary_expr = BinaryExprAST(None, None, None)
 
+# Blank object for filling function body
+function_proto_body = FunctionAST(None, None)
+
 # global flag to signal that parser is write call
 write_flag = False
 
@@ -503,6 +506,9 @@ def parse_block():
 # Parse procedure declaration and parameters
 def parse_procdecl():
     accept("PROCEDURE")
+
+    # Add identifier to AST node
+    function_proto_body.proto = current_token[1]
     accept("IDENTIFIER")
 
     # Implement [] brackets with if statement
@@ -602,6 +608,9 @@ def flatten(ast_node):
     elif isinstance(ast_node, BinaryAssignAST):
         args = [flatten(arg) for arg in ast_node.args]
         return ['STORE', ast_node.identifier, args]
+    elif isinstance(ast_node, FunctionAST):
+        body = [flatten(expr) for expr in ast_node.body]
+        return ['FUNC', ast_node.proto, body]
     else:
         raise TypeError('Unknown type in flatten()')
 
