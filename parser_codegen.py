@@ -63,7 +63,8 @@ binary_expr = BinaryExprAST(None, None, None)
 # Blank object for filling function body
 function_proto_body = FunctionAST(None, None)
 
-# global flag to signal that parser is write call
+# global flag to signal that parser is in write call/ function
+func_flag = False
 write_flag = False
 
 # Reads in the next token by advancing token index
@@ -361,7 +362,10 @@ def parse_assignment(identifier):
             args = [NumberExprAST(temp_token[1])]
 
     # Append binary assignment onto AST
-    ast.append(BinaryAssignAST(identifier, args))
+    if func_flag:
+        function_proto_body.body.append(BinaryAssignAST(identifier, args))
+    else:
+        ast.append(BinaryAssignAST(identifier, args))
 
 
 # Parse simple statement which can be an assignment or a procedure call
@@ -423,8 +427,11 @@ def parse_read():
         arguments.append(VariableExprAST(current_token[1]))
         accept("IDENTIFIER")
 
-    # Insert into AST
-    ast.append(ReadExprAST("READ", arguments))
+    # Insert into AST/ function body
+    if func_flag:
+        function_proto_body.body.append(ReadExprAST("READ", arguments))
+    else:
+        ast.append(ReadExprAST("READ", arguments))
 
     # End of read statement
     accept("RIGHTPARENTHESIS")
@@ -458,8 +465,11 @@ def parse_write():
     if binary_expr.lhs is not None:
         func_write_args.append(BinaryExprAST(binary_expr.op, binary_expr.lhs, binary_expr.rhs))
 
-    # Insert into AST
-    ast.append(WriteExprAST("WRITE", func_write_args))
+    # Insert into AST or function body
+    if func_flag:
+        function_proto_body.body.append(WriteExprAST("WRITE", func_write_args))
+    else:
+        ast.append(WriteExprAST("WRITE", func_write_args))
 
     # End of write statement
     accept("RIGHTPARENTHESIS")
@@ -507,6 +517,10 @@ def parse_block():
 def parse_procdecl():
     accept("PROCEDURE")
 
+    # Signal flag
+    global func_flag
+    func_flag = True
+
     # Add identifier to AST node
     function_proto_body.proto = current_token[1]
     accept("IDENTIFIER")
@@ -533,6 +547,10 @@ def parse_procdecl():
     parse_block()
 
     accept("SEMICOLON")
+
+    # Append function onto AST
+    ast.append(function_proto_body)
+    func_flag = False
 
 
 # Recursive-descent implementation of the grammar's productions.

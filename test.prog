@@ -1,7 +1,8 @@
 PROGRAM test;
 VAR x, y, z;
 BEGIN ! start of main
-    WRITE( x , x );
+    WRITE( x );
+    WRITE( y );
     READ( y );
     y := x + 5 * 6;
     z := 28;

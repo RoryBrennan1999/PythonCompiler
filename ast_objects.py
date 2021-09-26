@@ -55,3 +55,4 @@ class FunctionAST(ASTNode):
     def __init__(self, proto, body):
         self.proto = proto
         self.body = body
+        self.body = list() # body is list of AST nodes
