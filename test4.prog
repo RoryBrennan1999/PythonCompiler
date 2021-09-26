@@ -1,0 +1,11 @@
+PROGRAM test4;
+VAR a, b, c;
+PROCEDURE copy(x, REF y, z);
+	BEGIN
+		y := x;
+	END;
+BEGIN
+	a := 20;
+	c := 40;
+	copy(b, c, a + 10);
+END.
