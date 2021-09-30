@@ -45,6 +45,7 @@ def scanner(code):
         ('ASSIGNMENT', r':='),  # Assignment operator
         ('SEMICOLON', r';'),  # Statement terminator
         ('VAR', r'VAR?'),  # VAR identifier
+        ('REF', r'REF?'),  # REF identifier
         ('DO', r'DO?'),  # DO identifier
         ('IDENTIFIER', r'[A-Za-z\d]+'),  # Identifiers
         ('COMMA', r','),  # Commas
