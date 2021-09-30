@@ -236,6 +236,7 @@ def parse_subterm():
 def parse_term():
     if current_token[0] == "SUBTRACT":
         accept("SUBTRACT")
+
     parse_subterm()
 
 
@@ -246,10 +247,11 @@ def parse_compound_term():
     temp_token = current_token[0]
     # Check for simple arithmetic +/-
     while current_token[0] == "MULTIPLY" or current_token[0] == "DIVIDE":
-        accept(temp_token)
+        accept(current_token[0])
 
         # Assign object operator value
-        binary_expr.op = temp_token
+        if binary_expr.op is None:
+            binary_expr.op = temp_token
 
         # parse_compound_term() goes through * or /
         parse_term()
@@ -262,10 +264,11 @@ def parse_expression():
     temp_token = current_token[0]
     # Check for simple arithmetic +/-
     while current_token[0] == "ADD" or current_token[0] == "SUBTRACT":
-        accept(temp_token)
+        accept(current_token[0])
 
         # Assign object operator value
-        binary_expr.op = temp_token
+        if binary_expr.op is None:
+            binary_expr.op = temp_token
 
         # parse_compound_term() goes through * or /
         parse_compound_term()
