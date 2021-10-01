@@ -14,7 +14,7 @@ from ast_objects import (
     BinaryAssignAST,
     BinaryExprAST,
     FunctionAST,
-)
+    CallExprAST)
 
 # Error resynchronisation sets
 from synchronise_sets import (
@@ -294,14 +294,22 @@ def parse_boolean_expressions():
 # Parse each parameter in turn
 def parse_actual_parameter():
     if current_token[0] == "IDENTIFIER":
+        func_write_args.append(VariableExprAST(current_token[1]))
         accept("IDENTIFIER")
     else:
         parse_expression()
 
 
 # Parse procedure call and its parameters
-def parse_proc_call_list():
+def parse_proc_call_list(identifier):
     accept("LEFTPARENTHESIS")
+
+    # Signal flag
+    global write_flag
+    write_flag = True
+
+    # Clear global array for arguments
+    func_write_args.clear()
 
     # Parse first parameter
     parse_actual_parameter()
@@ -312,6 +320,12 @@ def parse_proc_call_list():
         parse_actual_parameter()
 
     accept("RIGHTPARENTHESIS")
+
+    # Append function call onto AST
+    arguments = list(func_write_args)
+    ast.append(CallExprAST(identifier, arguments))
+
+    write_flag = False
 
 # Parse binary expression assignment
 def parse_binary_assignment(identifier):
@@ -372,7 +386,7 @@ def parse_assignment(identifier):
 # Parse simple statement which can be an assignment or a procedure call
 def parse_rest_of_statement(temp_token):
     if current_token[0] == "LEFTPARENTHESIS":
-        parse_proc_call_list()
+        parse_proc_call_list(temp_token)
     elif current_token[0] == "ASSIGNMENT":
         parse_assignment(temp_token)
 
@@ -631,6 +645,9 @@ def flatten(ast_node):
     elif isinstance(ast_node, FunctionAST):
         body = [flatten(expr) for expr in ast_node.body]
         return ['FUNC', ast_node.proto, body]
+    elif isinstance(ast_node, CallExprAST):
+        args = [flatten(arg) for arg in ast_node.args]
+        return ['CALL', ast_node.callee, args]
     else:
         raise TypeError('Unknown type in flatten()')
 

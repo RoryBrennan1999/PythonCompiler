@@ -50,6 +50,11 @@ class BinaryAssignAST(ExprAST):
         self.identifier = identifier
         self.args = args
 
+class CallExprAST(ExprAST):
+    def __init__(self, callee, args):
+        self.callee = callee
+        self.args = args
+
 
 class FunctionAST(ASTNode):
     def __init__(self, proto, body):
