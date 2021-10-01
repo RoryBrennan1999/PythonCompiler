@@ -55,7 +55,7 @@ listFile = open(listFileName, 'w')
 ast = []
 
 # arguments global array for function/write parameters
-func_write_args = list()
+func_write_args = []
 
 # Blank object of binary expression for assignment/write calls
 binary_expr = BinaryExprAST(None, None, None)
@@ -250,8 +250,7 @@ def parse_compound_term():
         accept(current_token[0])
 
         # Assign object operator value
-        if binary_expr.op is None:
-            binary_expr.op = temp_token
+        binary_expr.op = temp_token
 
         # parse_compound_term() goes through * or /
         parse_term()
@@ -267,8 +266,7 @@ def parse_expression():
         accept(current_token[0])
 
         # Assign object operator value
-        if binary_expr.op is None:
-            binary_expr.op = temp_token
+        binary_expr.op = temp_token
 
         # parse_compound_term() goes through * or /
         parse_compound_term()
@@ -469,10 +467,11 @@ def parse_write():
         func_write_args.append(BinaryExprAST(binary_expr.op, binary_expr.lhs, binary_expr.rhs))
 
     # Insert into AST or function body
+    arguments = list(func_write_args)
     if func_flag:
-        function_proto_body.body.append(WriteExprAST("WRITE", func_write_args))
+        function_proto_body.body.append(WriteExprAST("WRITE", arguments))
     else:
-        ast.append(WriteExprAST("WRITE", func_write_args))
+        ast.append(WriteExprAST("WRITE", arguments))
 
     # End of write statement
     accept("RIGHTPARENTHESIS")
