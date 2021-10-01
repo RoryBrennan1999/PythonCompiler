@@ -17,7 +17,7 @@ from ast_objects import (
     CallExprAST)
 
 # Error resynchronisation sets
-from synchronise_sets import (
+from sets import (
     operators, # List of operator keywords
     ProgramFS1_aug,
     ProgramFS2_aug,
