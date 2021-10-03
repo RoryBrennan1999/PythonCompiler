@@ -18,7 +18,7 @@ from ast_objects import (
 
 # Error resynchronisation sets
 from sets import (
-    operators, # List of operator keywords
+    operators,  # List of operator keywords
     ProgramFS1_aug,
     ProgramFS2_aug,
     ProgramFBS,
@@ -30,7 +30,7 @@ from sets import (
 )
 
 import llvmlite.ir as ir
-import llvmlite.binding as llvm # llvmlite for code generation
+import llvmlite.binding as llvm  # llvmlite for code generation
 from scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 
@@ -66,6 +66,7 @@ function_proto_body = FunctionAST(None, None)
 # global flag to signal that parser is in write call/ function
 func_flag = False
 write_flag = False
+
 
 # Reads in the next token by advancing token index
 def get_token():
@@ -162,9 +163,9 @@ def parse_parameters():
 
     accept("RIGHTPARENTHESIS")
 
+
 # Parse write call parameters
 def parse_write_par(temp_token):
-
     # if statement to check whether current token is LHS or RHS or a lone standing variable/integer (write call only)
     if temp_token[0] == "IDENTIFIER":
         if binary_expr.lhs is None and current_token[0] != "COMMA" and current_token[0] != "RIGHTPARENTHESIS":
@@ -327,9 +328,9 @@ def parse_proc_call_list(identifier):
 
     write_flag = False
 
+
 # Parse binary expression assignment
 def parse_binary_assignment(identifier):
-
     if current_token[0] == "IDENTIFIER":
         if binary_expr.lhs is None:
             binary_expr.lhs = VariableExprAST(current_token[1])
@@ -349,7 +350,7 @@ def parse_binary_assignment(identifier):
     while current_token[0] in operators:
         if binary_expr.op is None:
             binary_expr.op = current_token[0]
-        else: # This covers expressions with two or more operators
+        else:  # This covers expressions with two or more operators
             binary_expr.lhs = BinaryExprAST(binary_expr.op, binary_expr.lhs, binary_expr.rhs)
             binary_expr.op = current_token[0]
             binary_expr.rhs = None
@@ -595,6 +596,7 @@ def parse_program():
     # '.' has name ENDOFPROGRAM
     accept("ENDOFPROGRAM")
 
+
 ############################################################
 # Code Generator for CPL Python Compiler                   #
 # Takes AST from parser and generates                      #
@@ -603,7 +605,10 @@ def parse_program():
 # 02/09/2021                                               #
 ############################################################
 
-def codegen():
+class CodegenError(Exception): pass
+
+
+def LLVMbackend():
     # Initialize code generator
     module = ir.Module()
 
@@ -614,12 +619,36 @@ def codegen():
     # names to ir.Value.
     func_symtab = {}
 
+    # Inner Function that actually generates code using AST
+    def codegen(tree_node):
+        if isinstance(tree_node, NumberExprAST):
+            builder.append(ir.Constant(ir.DoubleType(), float(tree_node.val)))
+        elif isinstance(tree_node, VariableExprAST):
+            func_symtab[tree_node.val] = tree_node
+        elif isinstance(tree_node, BinaryExprAST):
+            lhs = codegen(tree_node.lhs)
+            rhs = codegen(tree_node.rhs)
+
+            if tree_node.op == 'ADD':
+                return builder.fadd(lhs, rhs, 'addtmp')
+            elif tree_node.op == 'SUBTRACT':
+                return builder.fsub(lhs, rhs, 'subtmp')
+            elif tree_node.op == 'MULTIPLY':
+                return builder.fmul(lhs, rhs, 'multmp')
+            elif tree_node.op == 'DIVIDE':
+                return builder.fdiv(lhs, rhs, 'divtmp')
+            else:
+                raise CodegenError('Unknown binary operator', node.op)
+        elif isinstance(ast_node, ReadExprAST):
+            pass
+        elif isinstance(ast_node, WriteExprAST):
+            pass
+        elif isinstance(ast_node, BinaryAssignAST):
+            pass
+
     # Loop through ast and compile
     for ast_node in ast:
-        if isinstance(ast_node, NumberExprAST):
-            builder.append(ir.Constant(ir.DoubleType(), float(ast_node.val)))
-        elif isinstance(ast_node, VariableExprAST):
-            func_symtab[ast_node.val] = ast_node
+        codegen(ast_node)
 
     return module
 
