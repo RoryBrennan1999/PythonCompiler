@@ -33,10 +33,19 @@ import llvmlite.ir as ir
 import llvmlite.binding as llvm  # llvmlite for code generation
 from scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
+import pprint  # For pretty printing of AST
 
 # Open input file for scanning
-inputFileName = sys.argv[1]
-inputFile = open(inputFileName, 'r')
+try:
+    inputFileName = sys.argv[1]
+except IndexError:
+    print("Error. No input file given.")
+    sys.exit()
+try:
+    inputFile = open(inputFileName, 'r')
+except IOError:
+    print("Error. File does not appear to exist.")
+    sys.exit()
 
 # Global variables used for iterating through tokens array
 token_index = 0
@@ -47,9 +56,17 @@ current_token = tokens[token_index]
 inputFile = open(inputFileName, 'r')
 line_data = inputFile.readlines()
 
-# Open output file for writing
-listFileName = sys.argv[2]
-listFile = open(listFileName, 'w')
+# Open list file for writing
+try:
+    listFileName = sys.argv[2]
+except IndexError:
+    print("Error. No list file given.")
+    sys.exit()
+try:
+    listFile = open(listFileName, 'w')
+except IOError:
+    print("Error. File does not appear to exist.")
+    sys.exit()
 
 # Abstract Syntax Tree for input program
 ast = []
@@ -540,6 +557,7 @@ def parse_procdecl():
 
     # Add identifier to AST node
     function_proto_body.proto = current_token[1]
+    function_proto_body.body = list()
     accept("IDENTIFIER")
 
     # Implement [] brackets with if statement
@@ -566,7 +584,10 @@ def parse_procdecl():
     accept("SEMICOLON")
 
     # Append function onto AST
-    ast.append(function_proto_body)
+    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.body))
+
+    # Clear function object
+    function_proto_body.clear()
     func_flag = False
 
 
@@ -590,8 +611,21 @@ def parse_program():
         parse_procdecl()
         synchro(ProgramFS2_aug, ProgramFBS)
 
+    # Signal function object flag
+    global func_flag
+    func_flag = True
+    function_proto_body.body = list()
+    function_proto_body.proto = "main"
+
     # Begin parsing main block of code
     parse_block()
+
+    # Append main function onto AST
+    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.body))
+
+    # Deassert flag and clear object
+    func_flag = False
+    function_proto_body.clear()
 
     # '.' has name ENDOFPROGRAM
     accept("ENDOFPROGRAM")
@@ -605,50 +639,69 @@ def parse_program():
 # 02/09/2021                                               #
 ############################################################
 
-class CodegenError(Exception): pass
+class CodegenError(Exception):
+    pass
+
+
+# Global flag
+g_flag = True
 
 
 def LLVMbackend():
     # Initialize code generator
-    module = ir.Module()
+    module = ir.Module(name=inputFileName)
+
+    # Useful types
+    double = ir.DoubleType()
+    void = ir.VoidType()
+    main_func_type = ir.FunctionType(void, (void,))
 
     # Current IR builder.
-    builder = None
+    builder = ir.IRBuilder()
 
     # Manages a symbol table while a function is being codegen'd. Maps var
     # names to ir.Value.
     func_symtab = {}
 
     # Inner Function that actually generates code using AST
-    def codegen(tree_node):
+    def codegen(tree_node, current_builder):
+        global g_flag
         if isinstance(tree_node, NumberExprAST):
-            builder.append(ir.Constant(ir.DoubleType(), float(tree_node.val)))
+            ir.Constant(double, float(tree_node.val))
         elif isinstance(tree_node, VariableExprAST):
-            func_symtab[tree_node.val] = tree_node
+            if g_flag:
+                func_symtab[tree_node.val] = ir.GlobalVariable(module, double, tree_node.val)
+            else:
+                current_builder.load(func_symtab[tree_node.val], name="x")
         elif isinstance(tree_node, BinaryExprAST):
-            lhs = codegen(tree_node.lhs)
-            rhs = codegen(tree_node.rhs)
+            lhs = codegen(tree_node.lhs, current_builder)
+            rhs = codegen(tree_node.rhs, current_builder)
 
             if tree_node.op == 'ADD':
-                return builder.fadd(lhs, rhs, 'addtmp')
+                return current_builder.fadd(lhs, rhs, 'addtmp')
             elif tree_node.op == 'SUBTRACT':
-                return builder.fsub(lhs, rhs, 'subtmp')
+                return current_builder.fsub(lhs, rhs, 'subtmp')
             elif tree_node.op == 'MULTIPLY':
-                return builder.fmul(lhs, rhs, 'multmp')
+                return current_builder.fmul(lhs, rhs, 'multmp')
             elif tree_node.op == 'DIVIDE':
-                return builder.fdiv(lhs, rhs, 'divtmp')
+                return current_builder.fdiv(lhs, rhs, 'divtmp')
             else:
                 raise CodegenError('Unknown binary operator', node.op)
-        elif isinstance(ast_node, ReadExprAST):
-            pass
-        elif isinstance(ast_node, WriteExprAST):
-            pass
-        elif isinstance(ast_node, BinaryAssignAST):
-            pass
+        elif isinstance(tree_node, BinaryAssignAST):
+            [codegen(arg, current_builder) for arg in tree_node.args]
+        elif isinstance(tree_node, FunctionAST):
+            g_flag = False
+            func = ir.Function(module, main_func_type, name="main")
+            block = func.append_basic_block("entry")
+            current_builder = ir.IRBuilder(block)
+            [codegen(expr, current_builder) for expr in tree_node.body]
 
     # Loop through ast and compile
     for ast_node in ast:
-        codegen(ast_node)
+        codegen(ast_node, builder)
+
+    # Print symbol table
+    print(func_symtab)
 
     return module
 
@@ -685,30 +738,34 @@ def flatten(ast_node):
 # "parse_program" to start the parse
 if __name__ == "__main__":
     # Print tokens
-    for token in tokens:
-        print(token)
+    # for token in tokens:
+    # print(token)
 
     # Begin parsing (errors will also be inserted to list file when parsing
     parse_program()
 
     # Parsing done
-    print("Parsing finished.\n")
+    print("Parsing finished completely.\n")
 
     # Write to list file
     listFile.writelines(line_data)
 
-    # Print AST
+    # Print AST (in a nice way)
     print("Abstract Syntax Tree:")
+    pretty_tree = list()
     for node in ast:
-        print(flatten(node))
+        pretty_tree.append(flatten(node))
+    pp = pprint.PrettyPrinter(indent=2, compact=True)
+    pp.pprint(pretty_tree)
 
     # Begin code generation
     llvm.initialize()
     llvm.initialize_native_target()
     llvm.initialize_native_asmprinter()
 
-    # codegen_module = codegen(ast)
-    # print(codegen_module)
+    # Print machine code module
+    codegen_module = LLVMbackend()
+    print(codegen_module)
 
     # Close all files when done
     inputFile.close()
