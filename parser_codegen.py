@@ -84,6 +84,8 @@ function_proto_body = FunctionAST(None, None)
 func_flag = False
 write_flag = False
 
+# Global flag to signal that parser encountered an error
+error_present = False
 
 # Reads in the next token by advancing token index
 def get_token():
@@ -133,6 +135,8 @@ def accept(expected_token):
     if current_token[0] == expected_token:
         get_token()
     else:  # Display error message
+        global error_present
+        error_present = True
         print(
             f'Syntax Error! Expected {expected_token}, got {current_token[0]}! Error is found at line {current_token[2]} column {current_token[3]}.')
         # Insert error into list File (rstrip() gets rid of trailing newline)
@@ -644,7 +648,7 @@ class CodegenError(Exception):
 
 
 def LLVMbackend():
-    # Initialize code generator
+    # Initialize code generator (set module name to input file name)
     module = ir.Module(name=inputFileName)
 
     # Useful types
@@ -710,6 +714,8 @@ def LLVMbackend():
             pass
         # Function code generation
         elif isinstance(tree_node, FunctionAST):
+            # Print symbol table
+            print("Global Symbol Table:", func_symtab, "\n")
             # Create function IR block (called entry)
             func = ir.Function(module, main_func_type, name=tree_node.proto)
             block = func.append_basic_block("entry")
@@ -723,9 +729,6 @@ def LLVMbackend():
     # Loop through ast and compile
     for ast_node in ast:
         codegen(ast_node, builder)
-
-    # Print symbol table
-    print(func_symtab)
 
     return module
 
@@ -775,21 +778,25 @@ if __name__ == "__main__":
     listFile.writelines(line_data)
 
     # Print AST (in a nice way)
-    print("Abstract Syntax Tree:")
+    print("=== AST ===")
     pretty_tree = list()
     for node in ast:
         pretty_tree.append(flatten(node))
     pp = pprint.PrettyPrinter(indent=2, compact=True)
     pp.pprint(pretty_tree)
+    print("=== END OF AST ===\n")
 
     # Begin code generation
-    llvm.initialize()
-    llvm.initialize_native_target()
-    llvm.initialize_native_asmprinter()
+    if not error_present: # Do not generate code if errors present
+        llvm.initialize()
+        llvm.initialize_native_target()
+        llvm.initialize_native_asmprinter()
 
-    # Print machine code module
-    codegen_module = LLVMbackend()
-    print(codegen_module)
+        # Print machine code module
+        codegen_module = LLVMbackend()
+        print('=== LLVM IR ===')
+        print(codegen_module)
+        print('=== END OF IR ===')
 
     # Close all files when done
     inputFile.close()
