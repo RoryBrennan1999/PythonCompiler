@@ -643,10 +643,6 @@ class CodegenError(Exception):
     pass
 
 
-# Global flag
-g_flag = True
-
-
 def LLVMbackend():
     # Initialize code generator
     module = ir.Module(name=inputFileName)
@@ -665,18 +661,24 @@ def LLVMbackend():
 
     # Inner Function that actually generates code using AST
     def codegen(tree_node, current_builder):
-        global g_flag
-        if isinstance(tree_node, NumberExprAST):
-            ir.Constant(double, float(tree_node.val))
-        elif isinstance(tree_node, VariableExprAST):
-            if g_flag:
-                func_symtab[tree_node.val] = ir.GlobalVariable(module, double, tree_node.val)
-            else:
-                current_builder.load(func_symtab[tree_node.val], name="x")
+        if isinstance(tree_node, VariableExprAST):
+            func_symtab[tree_node.val] = ir.GlobalVariable(module, double, tree_node.val)
+        # Code generation for binary expressions
         elif isinstance(tree_node, BinaryExprAST):
-            lhs = codegen(tree_node.lhs, current_builder)
-            rhs = codegen(tree_node.rhs, current_builder)
+            if isinstance(tree_node.lhs, NumberExprAST):
+                lhs = ir.Constant(double, float(tree_node.lhs.val))
+            elif isinstance(tree_node.lhs, VariableExprAST):
+                lhs = current_builder.load(func_symtab[tree_node.lhs.val], name=tree_node.lhs.val)
+            elif isinstance(tree_node.lhs, BinaryExprAST): # Recursive (expressions inside expressions)
+                lhs = codegen(tree_node.lhs, current_builder)
+            if isinstance(tree_node.rhs, NumberExprAST):
+                rhs = ir.Constant(double, float(tree_node.rhs.val))
+            elif isinstance(tree_node.rhs, VariableExprAST):
+                rhs = current_builder.load(func_symtab[tree_node.rhs.val], name=tree_node.rhs.val)
+            elif isinstance(tree_node.rhs, BinaryExprAST): # Recursive (expressions inside expressions)
+                rhs = codegen(tree_node.rhs, current_builder)
 
+            # Compute result with relevant operator and return
             if tree_node.op == 'ADD':
                 return current_builder.fadd(lhs, rhs, 'addtmp')
             elif tree_node.op == 'SUBTRACT':
@@ -687,14 +689,36 @@ def LLVMbackend():
                 return current_builder.fdiv(lhs, rhs, 'divtmp')
             else:
                 raise CodegenError('Unknown binary operator', node.op)
+        # Assignment operations
         elif isinstance(tree_node, BinaryAssignAST):
-            [codegen(arg, current_builder) for arg in tree_node.args]
+            rhs_val = None
+            for arg in tree_node.args:
+                if isinstance(arg, NumberExprAST) and not(len(tree_node.args) > 1):
+                    rhs_val = ir.Constant(double, float(arg.val))
+                else: # Binary expression
+                    rhs_val = codegen(arg, current_builder)
+            # Store result in memory
+            current_builder.store(rhs_val, func_symtab[tree_node.identifier])
+        # Code generation for Write calls (equivalent to assignment calls)
+        elif isinstance(tree_node, WriteExprAST):
+            pass
+        # Code generation for Read calls
+        elif isinstance(tree_node, ReadExprAST):
+            pass
+        # Code generation for function calls
+        elif isinstance(tree_node, CallExprAST):
+            pass
+        # Function code generation
         elif isinstance(tree_node, FunctionAST):
-            g_flag = False
-            func = ir.Function(module, main_func_type, name="main")
+            # Create function IR block (called entry)
+            func = ir.Function(module, main_func_type, name=tree_node.proto)
             block = func.append_basic_block("entry")
+            # Update current builder
             current_builder = ir.IRBuilder(block)
             [codegen(expr, current_builder) for expr in tree_node.body]
+
+        # Exit
+        return 0
 
     # Loop through ast and compile
     for ast_node in ast:
