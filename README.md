@@ -9,4 +9,4 @@ This is my FYP project with the title of:
 - Writes input to list file with errors pointed out (if present)
 - Generates an AST
 - Provides optimizations on the AST
-- Generates machine code using LVM from the AST
+- Generates machine code using LLVM from the AST
