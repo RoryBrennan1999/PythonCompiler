@@ -18,8 +18,16 @@ class Token(NamedTuple):  # Tuple class that holds tokens
 
 
 # Open input file for scanning
-inputFileName = sys.argv[1]
-inputFile = open(inputFileName, 'r')
+try:
+    inputFileName = sys.argv[1]
+except IndexError:
+    print("Error. No input file given.")
+    sys.exit()
+try:
+    inputFile = open(inputFileName, 'r')
+except IOError:
+    print("Error. File does not appear to exist.")
+    sys.exit()
 
 
 # Scanner function that analyzes code to categorize characters
