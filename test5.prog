@@ -7,5 +7,5 @@ PROCEDURE write( x );
 		x := 50;
 	END;
 BEGIN
-    write(a);
+    write( a );
 END.

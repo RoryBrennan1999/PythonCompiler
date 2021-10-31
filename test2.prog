@@ -2,7 +2,7 @@ PROGRAM test2;
 VAR x, y;
 PROCEDURE p1;
     BEGIN
-        y := 27;
+        WRITE( y, 10);
         x := 12;
     END;
 BEGIN

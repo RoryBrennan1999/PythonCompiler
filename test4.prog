@@ -1,6 +1,6 @@
 PROGRAM test4;
 VAR a, b, c;
-PROCEDURE copy(x, REF y, z);
+PROCEDURE copy(x, y, REF z);
 	BEGIN
 		y := x;
 	END;
