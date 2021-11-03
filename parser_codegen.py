@@ -651,10 +651,14 @@ def LLVMbackend():
     # Initialize code generator (set module name to input file name)
     module = ir.Module(name=inputFileName)
 
-    # Useful types
+    # Useful integer/void types
     double = ir.DoubleType()
     void = ir.VoidType()
+
+    # Function types for Read/Write and main func calls
     main_func_type = ir.FunctionType(void, (void,))
+    write_type = ir.FunctionType(void, (double, double))
+    read_type = ir.FunctionType(void, (double,))
 
     # Current IR builder.
     builder = ir.IRBuilder()
@@ -705,10 +709,32 @@ def LLVMbackend():
             current_builder.store(rhs_val, func_symtab[tree_node.identifier])
         # Code generation for Write calls (equivalent to assignment calls)
         elif isinstance(tree_node, WriteExprAST):
-            pass
+            # Create IR function object
+            write_func = ir.Function(module, write_type, name="WRITE")
+            # Parse args
+            call_args = []
+            for expr in tree_node.args:
+                if isinstance(expr, NumberExprAST):
+                    call_args.append(ir.Constant(double, float(expr.val)))
+                elif isinstance(expr, VariableExprAST):
+                    call_args.append(current_builder.load(func_symtab[expr.val], name=expr.val))
+                else:
+                    call_args.append(codegen(expr, current_builder))
+            # Emit call instruction
+            current_builder.call(write_func, call_args, "calltmp")
         # Code generation for Read calls
         elif isinstance(tree_node, ReadExprAST):
-            pass
+            # Create IR function object
+            read_func = ir.Function(module, read_type, name="READ")
+            # Parse args
+            call_args = []
+            for expr in tree_node.args:
+                if isinstance(expr, VariableExprAST):
+                    call_args.append(current_builder.load(func_symtab[expr.val], name=expr.val))
+                else:
+                    call_args.append(codegen(expr, current_builder))
+            # Emit call instruction
+            current_builder.call(read_func, call_args, "calltmp")
         # Code generation for function calls
         elif isinstance(tree_node, CallExprAST):
             pass
@@ -772,7 +798,7 @@ if __name__ == "__main__":
     parse_program()
 
     # Parsing done
-    print("Parsing finished completely.\n")
+    print("=== Parsing Report ===\nParsing finished completely.\nCheck list file for errors (if present).\n")
 
     # Write to list file
     listFile.writelines(line_data)
@@ -797,6 +823,8 @@ if __name__ == "__main__":
         print('=== LLVM IR ===')
         print(codegen_module)
         print('=== END OF IR ===')
+    else:
+        print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!")
 
     # Close all files when done
     inputFile.close()
