@@ -55,6 +55,10 @@ class CallExprAST(ExprAST):
         self.callee = callee
         self.args = args
 
+class CallExprASTNP(ExprAST):
+    def __init__(self, callee):
+        self.callee = callee
+
 class FunctionAST(ASTNode):
     def __init__(self, proto, body):
         self.proto = proto

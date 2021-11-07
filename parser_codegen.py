@@ -14,7 +14,8 @@ from ast_objects import (
     BinaryAssignAST,
     BinaryExprAST,
     FunctionAST,
-    CallExprAST)
+    CallExprAST,
+    CallExprASTNP)
 
 # Error resynchronisation sets
 from sets import (
@@ -411,6 +412,12 @@ def parse_rest_of_statement(temp_token):
         parse_proc_call_list(temp_token)
     elif current_token[0] == "ASSIGNMENT":
         parse_assignment(temp_token)
+    elif current_token[0] == "SEMICOLON":
+        # Append function call onto AST
+        if func_flag:
+            function_proto_body.body.append(CallExprASTNP(temp_token))
+        else:
+            ast.append(CallExprASTNP(temp_token))
 
 
 # Parse simple statement
@@ -657,8 +664,9 @@ def LLVMbackend():
 
     # Function types for Read/Write and main func calls
     main_func_type = ir.FunctionType(void, (void,))
-    write_type = ir.FunctionType(void, (double, double))
-    read_type = ir.FunctionType(void, (double,))
+    # var_arg defines whether this function can take additional arguments
+    write_type = ir.FunctionType(void, (double,), var_arg=True)
+    read_type = ir.FunctionType(void, (double,), var_arg=True)
 
     # Current IR builder.
     builder = ir.IRBuilder()
@@ -736,18 +744,23 @@ def LLVMbackend():
             # Emit call instruction
             current_builder.call(read_func, call_args, "calltmp")
         # Code generation for function calls
-        elif isinstance(tree_node, CallExprAST):
-            pass
+        elif isinstance(tree_node, CallExprASTNP):
+            callee_func = module.get_global(tree_node.callee)
+            if callee_func is None or not isinstance(callee_func, ir.Function):
+                raise CodegenError('Call to unknown function', node.callee)
+            # Emit call instruction
+            null_arg = [ir.GlobalValue(module, void, "null")]
+            current_builder.call(callee_func, null_arg, "calltmp")
         # Function code generation
         elif isinstance(tree_node, FunctionAST):
-            # Print symbol table
-            print("Global Symbol Table:", func_symtab, "\n")
             # Create function IR block (called entry)
             func = ir.Function(module, main_func_type, name=tree_node.proto)
             block = func.append_basic_block("entry")
             # Update current builder
             current_builder = ir.IRBuilder(block)
             [codegen(expr, current_builder) for expr in tree_node.body]
+            # Print symbol table
+            print("Symbol Table:", func_symtab, "for", tree_node.proto, "\n")
 
         # Exit
         return 0
@@ -783,6 +796,8 @@ def flatten(ast_node):
     elif isinstance(ast_node, CallExprAST):
         args = [flatten(arg) for arg in ast_node.args]
         return ['CALL', ast_node.callee, args]
+    elif isinstance(ast_node, CallExprASTNP):
+        return ['CALL', ast_node.callee]
     else:
         raise TypeError('Unknown type in flatten()')
 
