@@ -55,6 +55,7 @@ class CallExprAST(ExprAST):
         self.callee = callee
         self.args = args
 
+# Call expression with no params
 class CallExprASTNP(ExprAST):
     def __init__(self, callee):
         self.callee = callee
@@ -67,3 +68,14 @@ class FunctionAST(ASTNode):
     def clear(self):
         self.proto = None
         self.body = None
+
+class IfExprAST(ExprAST):
+    def __init__(self, cond, then_bl, else_bl):
+        self.cond = cond
+        self.then_bl = then_bl
+        self.else_bl = else_bl
+
+class WhileExprAST(ExprAST):
+    def __init__(self, cond, body):
+        self.cond = cond
+        self.body = body

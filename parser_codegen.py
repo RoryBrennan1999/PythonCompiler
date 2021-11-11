@@ -15,7 +15,9 @@ from ast_objects import (
     BinaryExprAST,
     FunctionAST,
     CallExprAST,
-    CallExprASTNP)
+    CallExprASTNP,
+    IfExprAST,
+    WhileExprAST)
 
 # Error resynchronisation sets
 from sets import (
