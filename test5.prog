@@ -1,11 +1,11 @@
 PROGRAM test5;
 VAR a;
-PROCEDURE write( x );
-	BEGIN
-		WRITE( x );
-		READ( x );
-		x := 50;
-	END;
 BEGIN
-    write( a );
+    IF a >= 10 THEN
+    BEGIN
+        a := 5;
+    END
+    ELSE BEGIN
+         a := 10;
+    END;
 END.

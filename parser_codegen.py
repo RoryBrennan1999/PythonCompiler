@@ -77,18 +77,25 @@ ast = []
 # arguments global array for function/write parameters
 func_write_args = []
 
-# Blank object of binary expression for assignment/write calls
+# Blank global object of binary expression for assignment/write calls
 binary_expr = BinaryExprAST(None, None, None)
 
-# Blank object for filling function body
-function_proto_body = FunctionAST(None, None)
+# Blank global object for filling function body/proto
+function_proto_body = FunctionAST(None, None, None)
 
-# global flag to signal that parser is in write call/ function
+# Blank global object for if and while blocks
+if_object = IfExprAST(None, None, None)
+while_object = WhileExprAST(None, None)
+
+# global flag to signal that parser is in write call/function
 func_flag = False
+if_then_while_flag = False
+if_else_flag = False
 write_flag = False
 
 # Global flag to signal that parser encountered an error
 error_present = False
+
 
 # Reads in the next token by advancing token index
 def get_token():
@@ -177,14 +184,22 @@ def parse_formal_parameter():
 def parse_parameters():
     accept("LEFTPARENTHESIS")
 
+    # Clear global array for arguments
+    func_write_args.clear()
+
     # Parse first parameter
+    func_write_args.append(VariableExprAST(current_token[1]))
     parse_formal_parameter()
 
     # Check for one or more parameters
     while current_token[0] == "COMMA":
         accept("COMMA")
+        func_write_args.append(VariableExprAST(current_token[1]))
         parse_formal_parameter()
 
+    # Append parameters to function
+    arguments = list(func_write_args)
+    function_proto_body.args = arguments
     accept("RIGHTPARENTHESIS")
 
 
@@ -299,21 +314,26 @@ def parse_expression():
 
 # Parse boolean expressions
 def parse_boolean_expressions():
-    parse_expression()
+    parse_binary_assignment(current_token[0])
 
     # Check for each boolean expression in turn
     if current_token[0] == "EQUALITY":
+        binary_expr.op = current_token[1]
         accept("EQUALITY")
     elif current_token[0] == "LESSEQUAL":
+        binary_expr.op = current_token[1]
         accept("LESSEQUAL")
     elif current_token[0] == "GREATEREQUAL":
+        binary_expr.op = current_token[1]
         accept("GREATEREQUAL")
     elif current_token[0] == "LESS":
+        binary_expr.op = current_token[1]
         accept("LESS")
     elif current_token[0] == "GREATER":
+        binary_expr.op = current_token[1]
         accept("GREATER")
 
-    parse_expression()
+    parse_binary_assignment(current_token[0])
 
 
 # Parse each parameter in turn
@@ -328,10 +348,6 @@ def parse_actual_parameter():
 # Parse procedure call and its parameters
 def parse_proc_call_list(identifier):
     accept("LEFTPARENTHESIS")
-
-    # Signal flag
-    global write_flag
-    write_flag = True
 
     # Clear global array for arguments
     func_write_args.clear()
@@ -349,8 +365,6 @@ def parse_proc_call_list(identifier):
     # Append function call onto AST
     arguments = list(func_write_args)
     ast.append(CallExprAST(identifier, arguments))
-
-    write_flag = False
 
 
 # Parse binary expression assignment
@@ -402,8 +416,12 @@ def parse_assignment(identifier):
             args = [NumberExprAST(temp_token[1])]
 
     # Append binary assignment onto AST
-    if func_flag:
+    if func_flag and not if_then_while_flag and not if_else_flag:
         function_proto_body.body.append(BinaryAssignAST(identifier, args))
+    elif if_then_while_flag:
+        if_object.then_bl.append(BinaryAssignAST(identifier, args))
+    elif if_else_flag:
+        if_object.else_bl.append(BinaryAssignAST(identifier, args))
     else:
         ast.append(BinaryAssignAST(identifier, args))
 
@@ -443,18 +461,44 @@ def parse_while():
 
 # Parse IF block
 def parse_if():
+
+    # Signal flag
+    global if_then_while_flag
+    if_then_while_flag = True
+
+    # Parse IF
     accept("IF")
 
     # Parse conditionals
+    binary_expr.clear()
     parse_boolean_expressions()
+
+    # Append conditional statement to tree
+    if_object.cond = BinaryExprAST(binary_expr.op, binary_expr.lhs, binary_expr.rhs)
+    if_object.then_bl = list()
+    if_object.else_bl = list()
 
     # Parse THEN block
     accept("THEN")
     parse_block()
 
+    # Close flag
+    if_then_while_flag = False
+
+    # Signal else flag
+    global if_else_flag
+    if_else_flag = True
+
     if current_token[0] == "ELSE":
         accept("ELSE")
         parse_block()
+
+    if func_flag:
+        function_proto_body.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
+    else:
+        ast.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
+
+    if_else_flag = False
 
 
 # Parse READ block
@@ -474,8 +518,12 @@ def parse_read():
         accept("IDENTIFIER")
 
     # Insert into AST/ function body
-    if func_flag:
+    if func_flag and not if_then_while_flag and not if_else_flag:
         function_proto_body.body.append(ReadExprAST("READ", arguments))
+    elif if_then_while_flag:
+        if_object.then_bl.append(ReadExprAST("READ", arguments))
+    elif if_else_flag:
+        if_object.else_bl.append(ReadExprAST("READ", arguments))
     else:
         ast.append(ReadExprAST("READ", arguments))
 
@@ -513,8 +561,12 @@ def parse_write():
 
     # Insert into AST or function body
     arguments = list(func_write_args)
-    if func_flag:
+    if func_flag and not if_then_while_flag and not if_else_flag:
         function_proto_body.body.append(WriteExprAST("WRITE", arguments))
+    elif if_then_while_flag:
+        if_object.then_bl.append(WriteExprAST("WRITE", arguments))
+    elif if_else_flag:
+        if_object.else_bl.append(WriteExprAST("WRITE", arguments))
     else:
         ast.append(WriteExprAST("WRITE", arguments))
 
@@ -597,7 +649,7 @@ def parse_procdecl():
     accept("SEMICOLON")
 
     # Append function onto AST
-    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.body))
+    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.args, function_proto_body.body))
 
     # Clear function object
     function_proto_body.clear()
@@ -634,7 +686,7 @@ def parse_program():
     parse_block()
 
     # Append main function onto AST
-    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.body))
+    ast.append(FunctionAST(function_proto_body.proto, None, function_proto_body.body))
 
     # Deassert flag and clear object
     func_flag = False
@@ -687,13 +739,13 @@ def LLVMbackend():
                 lhs = ir.Constant(double, float(tree_node.lhs.val))
             elif isinstance(tree_node.lhs, VariableExprAST):
                 lhs = current_builder.load(func_symtab[tree_node.lhs.val], name=tree_node.lhs.val)
-            elif isinstance(tree_node.lhs, BinaryExprAST): # Recursive (expressions inside expressions)
+            elif isinstance(tree_node.lhs, BinaryExprAST):  # Recursive (expressions inside expressions)
                 lhs = codegen(tree_node.lhs, current_builder)
             if isinstance(tree_node.rhs, NumberExprAST):
                 rhs = ir.Constant(double, float(tree_node.rhs.val))
             elif isinstance(tree_node.rhs, VariableExprAST):
                 rhs = current_builder.load(func_symtab[tree_node.rhs.val], name=tree_node.rhs.val)
-            elif isinstance(tree_node.rhs, BinaryExprAST): # Recursive (expressions inside expressions)
+            elif isinstance(tree_node.rhs, BinaryExprAST):  # Recursive (expressions inside expressions)
                 rhs = codegen(tree_node.rhs, current_builder)
 
             # Compute result with relevant operator and return
@@ -705,15 +757,23 @@ def LLVMbackend():
                 return current_builder.fmul(lhs, rhs, 'multmp')
             elif tree_node.op == 'DIVIDE':
                 return current_builder.fdiv(lhs, rhs, 'divtmp')
+            elif tree_node.op == 'GREATEREQUAL':
+                return current_builder.icmp_signed(">=", lhs, rhs, "greateqtmp")
+            elif tree_node.op == 'LESS':
+                return current_builder.icmp_signed("<", lhs, rhs, "lesstmp")
+            elif tree_node.op == 'GREATER':
+                return current_builder.icmp_signed(">", lhs, rhs, "greatertmp")
+            elif tree_node.op == "LESSEQUAL":
+                return current_builder.icmp_signed("<=", lhs, rhs, "lesseqtmp")
             else:
                 raise CodegenError('Unknown binary operator', node.op)
         # Assignment operations
         elif isinstance(tree_node, BinaryAssignAST):
             rhs_val = None
             for arg in tree_node.args:
-                if isinstance(arg, NumberExprAST) and not(len(tree_node.args) > 1):
+                if isinstance(arg, NumberExprAST) and not (len(tree_node.args) > 1):
                     rhs_val = ir.Constant(double, float(arg.val))
-                else: # Binary expression
+                else:  # Binary expression
                     rhs_val = codegen(arg, current_builder)
             # Store result in memory
             current_builder.store(rhs_val, func_symtab[tree_node.identifier])
@@ -745,7 +805,7 @@ def LLVMbackend():
                     call_args.append(codegen(expr, current_builder))
             # Emit call instruction
             current_builder.call(read_func, call_args, "calltmp")
-        # Code generation for function calls
+        # Code generation for function calls (No parameters)
         elif isinstance(tree_node, CallExprASTNP):
             callee_func = module.get_global(tree_node.callee)
             if callee_func is None or not isinstance(callee_func, ir.Function):
@@ -753,16 +813,67 @@ def LLVMbackend():
             # Emit call instruction
             null_arg = [ir.GlobalValue(module, void, "null")]
             current_builder.call(callee_func, null_arg, "calltmp")
+        elif isinstance(tree_node, IfExprAST):
+            # Conditionals
+            cond_val = codegen(tree_node.cond, current_builder)
+
+            # Append blocks
+            then_bb = current_builder.function.append_basic_block('then')
+            else_bb = ir.Block(current_builder.function, 'else')
+            merge_bb = ir.Block(current_builder.function, 'ifcont')
+            current_builder.cbranch(cond_val, then_bb, else_bb)
+
+            # Emit the 'then' part
+            current_builder.position_at_start(then_bb)
+            then_val = codegen(tree_node.then_bl, current_builder)
+            current_builder.branch(merge_bb)
+
+            # Emission of then_val could have modified the current basic block. To
+            # properly set up the PHI, remember which block the 'then' part ends in.
+            then_bb = current_builder.block
+
+            # Emit the 'else' part
+            current_builder.function.basic_blocks.append(else_bb)
+            current_builder.position_at_start(else_bb)
+            else_val = codegen(tree_node.else_bl, current_builder)
+
+            # Emission of else_val could have modified the current basic block.
+            else_bb = current_builder.block
+            current_builder.branch(merge_bb)
+
+            # Emit the merge ('ifcnt') block
+            current_builder.function.basic_blocks.append(merge_bb)
+            current_builder.position_at_start(merge_bb)
+            phi = current_builder.phi(double, 'iftmp')
+            phi.add_incoming(then_val, then_bb)
+            phi.add_incoming(else_val, else_bb)
+
         # Function code generation
         elif isinstance(tree_node, FunctionAST):
+
             # Create function IR block (called entry)
-            func = ir.Function(module, main_func_type, name=tree_node.proto)
+            if tree_node.args is not None:
+                func_type = ir.FunctionType(void, [double] * len(tree_node.args))
+                func = ir.Function(module, func_type, name=tree_node.proto)
+            else:
+                func = ir.Function(module, main_func_type, name=tree_node.proto)
             block = func.append_basic_block("entry")
+
             # Update current builder
             current_builder = ir.IRBuilder(block)
-            [codegen(expr, current_builder) for expr in tree_node.body]
+
             # Print symbol table
-            print("Symbol Table:", func_symtab, "for", tree_node.proto, "\n")
+            if tree_node.proto == "main":
+                print("Global Symbol Table:", func_symtab, "\n")
+                global_symtab = dict(func_symtab)
+
+            # if tree_node.args is not None:
+            # for arg in tree_node.args:
+            # alloca = builder.alloca(double, name=arg.val)
+            # builder.store(arg.val, alloca)
+            # func_symtab[arg.val] = alloca
+
+            [codegen(expr, current_builder) for expr in tree_node.body]
 
         # Exit
         return 0
@@ -793,13 +904,25 @@ def flatten(ast_node):
         args = [flatten(arg) for arg in ast_node.args]
         return ['STORE', ast_node.identifier, args]
     elif isinstance(ast_node, FunctionAST):
+        if ast_node.args is not None:
+            args = [flatten(expr) for expr in ast_node.args]
+        else:
+            args = "NO ARGS"
         body = [flatten(expr) for expr in ast_node.body]
-        return ['FUNC', ast_node.proto, body]
+        return ['FUNC', ast_node.proto, args, body]
     elif isinstance(ast_node, CallExprAST):
         args = [flatten(arg) for arg in ast_node.args]
         return ['CALL', ast_node.callee, args]
     elif isinstance(ast_node, CallExprASTNP):
         return ['CALL', ast_node.callee]
+    elif isinstance(ast_node, IfExprAST):
+        cond = flatten(ast_node.cond)
+        then = [flatten(expr) for expr in ast_node.then_bl]
+        if len(ast_node.else_bl) == 0:
+            return ['IF', cond, then]
+        else:
+            else_block = [flatten(expr) for expr in ast_node.else_bl]
+            return ['IF', cond, "THEN", then, "ELSE", else_block]
     else:
         raise TypeError('Unknown type in flatten()')
 
@@ -815,7 +938,7 @@ if __name__ == "__main__":
     parse_program()
 
     # Parsing done
-    print("=== Parsing Report ===\nParsing finished completely.\nCheck list file for errors (if present).\n")
+    print("=== Compiler Report ===\nParsing finished completely.\nCheck list file for errors (if present).\n")
 
     # Write to list file
     listFile.writelines(line_data)
@@ -829,8 +952,9 @@ if __name__ == "__main__":
     pp.pprint(pretty_tree)
     print("=== END OF AST ===\n")
 
+    #error_present = True
     # Begin code generation
-    if not error_present: # Do not generate code if errors present
+    if not error_present:  # Do not generate code if errors present
         llvm.initialize()
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
@@ -846,3 +970,5 @@ if __name__ == "__main__":
     # Close all files when done
     inputFile.close()
     listFile.close()
+
+    print("\n=== End of Compiler Report ===")

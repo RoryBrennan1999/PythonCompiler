@@ -1,12 +1,11 @@
-PROGRAM test2;
-VAR x, y;
-PROCEDURE p1;
-    BEGIN
-        WRITE( y, 10);
-        x := 12;
-    END;
+PROGRAM test5;
+VAR a;
 BEGIN
-    y := 3;
-    x := y * 3;
-    p1;
+    IF a >= 10 THEN
+    BEGIN
+        a := 5;
+    END
+    ELSE BEGIN
+         a := 10;
+    END;
 END.

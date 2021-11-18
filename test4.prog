@@ -1,11 +1,9 @@
 PROGRAM test4;
-VAR a, b, c;
-PROCEDURE copy(x, y, REF z);
+VAR a, b;
+PROCEDURE copy(x, y);
 	BEGIN
-		y := x;
 	END;
 BEGIN
 	a := 20;
-	c := 40;
-	copy(b, c, a + 10);
+	b := 40;
 END.
