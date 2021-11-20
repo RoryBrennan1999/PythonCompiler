@@ -89,8 +89,9 @@ while_object = WhileExprAST(None, None)
 
 # global flag to signal that parser is in write call/function
 func_flag = False
-if_then_while_flag = False
+if_then_flag = False
 if_else_flag = False
+while_flag = False
 write_flag = False
 
 # Global flag to signal that parser encountered an error
@@ -416,12 +417,14 @@ def parse_assignment(identifier):
             args = [NumberExprAST(temp_token[1])]
 
     # Append binary assignment onto AST
-    if func_flag and not if_then_while_flag and not if_else_flag:
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag:
         function_proto_body.body.append(BinaryAssignAST(identifier, args))
-    elif if_then_while_flag:
+    elif if_then_flag:
         if_object.then_bl.append(BinaryAssignAST(identifier, args))
     elif if_else_flag:
         if_object.else_bl.append(BinaryAssignAST(identifier, args))
+    elif while_flag:
+        while_object.body.append(BinaryAssignAST(identifier, args))
     else:
         ast.append(BinaryAssignAST(identifier, args))
 
@@ -434,8 +437,14 @@ def parse_rest_of_statement(temp_token):
         parse_assignment(temp_token)
     elif current_token[0] == "SEMICOLON":
         # Append function call onto AST
-        if func_flag:
+        if func_flag and not if_then_flag and not if_else_flag and not while_flag:
             function_proto_body.body.append(CallExprASTNP(temp_token))
+        elif if_then_flag:
+            if_object.then_bl.append(CallExprASTNP(temp_token))
+        elif if_else_flag:
+            if_object.else_bl.append(CallExprASTNP(temp_token))
+        elif while_flag:
+            while_object.body.append(CallExprASTNP(temp_token))
         else:
             ast.append(CallExprASTNP(temp_token))
 
@@ -449,22 +458,45 @@ def parse_simple_statement():
 
 # Parse WHILE block
 def parse_while():
+
+    # Signal flag
+    global while_flag
+    while_flag = True
+
     accept("WHILE")
 
     # Parse conditionals
+    binary_expr.clear()
     parse_boolean_expressions()
+
+    # Append conditional statement to tree
+    while_object.cond = BinaryExprAST(binary_expr.op, binary_expr.lhs, binary_expr.rhs)
+    while_object.body = list()
 
     # Parse DO block
     accept("DO")
     parse_block()
+
+    # Close flag
+    while_flag = False
+
+    # Insert into AST/ function body
+    if func_flag and not if_then_flag and not if_else_flag:
+        function_proto_body.body.append(WhileExprAST(while_object.cond, while_object.body))
+    elif if_then_flag:
+        if_object.then_bl.append(WhileExprAST(while_object.cond, while_object.body))
+    elif if_else_flag:
+        if_object.else_bl.append(WhileExprAST(while_object.cond, while_object.body))
+    else:
+        ast.append(WhileExprAST(while_object.cond, while_object.body))
 
 
 # Parse IF block
 def parse_if():
 
     # Signal flag
-    global if_then_while_flag
-    if_then_while_flag = True
+    global if_then_flag
+    if_then_flag = True
 
     # Parse IF
     accept("IF")
@@ -483,7 +515,7 @@ def parse_if():
     parse_block()
 
     # Close flag
-    if_then_while_flag = False
+    if_then_flag = False
 
     # Signal else flag
     global if_else_flag
@@ -493,8 +525,10 @@ def parse_if():
         accept("ELSE")
         parse_block()
 
-    if func_flag:
+    if func_flag and not while_flag:
         function_proto_body.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
+    elif while_flag:
+        while_object.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
     else:
         ast.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
 
@@ -518,12 +552,14 @@ def parse_read():
         accept("IDENTIFIER")
 
     # Insert into AST/ function body
-    if func_flag and not if_then_while_flag and not if_else_flag:
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag:
         function_proto_body.body.append(ReadExprAST("READ", arguments))
-    elif if_then_while_flag:
+    elif if_then_flag:
         if_object.then_bl.append(ReadExprAST("READ", arguments))
     elif if_else_flag:
         if_object.else_bl.append(ReadExprAST("READ", arguments))
+    elif write_flag:
+        while_object.body.append(ReadExprAST("READ", arguments))
     else:
         ast.append(ReadExprAST("READ", arguments))
 
@@ -561,12 +597,14 @@ def parse_write():
 
     # Insert into AST or function body
     arguments = list(func_write_args)
-    if func_flag and not if_then_while_flag and not if_else_flag:
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag:
         function_proto_body.body.append(WriteExprAST("WRITE", arguments))
-    elif if_then_while_flag:
+    elif if_then_flag:
         if_object.then_bl.append(WriteExprAST("WRITE", arguments))
     elif if_else_flag:
         if_object.else_bl.append(WriteExprAST("WRITE", arguments))
+    elif while_flag:
+        while_object.body.append(WriteExprAST("WRITE", arguments))
     else:
         ast.append(WriteExprAST("WRITE", arguments))
 
@@ -813,15 +851,14 @@ def LLVMbackend():
             # Emit call instruction
             null_arg = [ir.GlobalValue(module, void, "null")]
             current_builder.call(callee_func, null_arg, "calltmp")
+        # Code generation for IF blocks
         elif isinstance(tree_node, IfExprAST):
-            # Conditionals
+            # Conditional
             cond_val = codegen(tree_node.cond, current_builder)
-            cmp = current_builder.icmp_signed(
-                '!=', cond_val, ir.Constant(ir.DoubleType(), 0.0))
 
             # Append blocks
             if len(tree_node.else_bl) != 0:
-                with current_builder.if_else(cmp) as (then, otherwise):
+                with current_builder.if_else(cond_val) as (then, otherwise):
                     with then:
                         for elem in tree_node.then_bl:
                             codegen(elem, current_builder)
@@ -829,9 +866,27 @@ def LLVMbackend():
                         for elem in tree_node.else_bl:
                             codegen(elem, current_builder)
             else:
-                current_builder.if_then(cmp)
+                current_builder.if_then(cond_val)
                 for elem in tree_node.then_bl:
                     codegen(elem, current_builder)
+        # Code generation for WHILE blocks
+        elif isinstance(tree_node, WhileExprAST):
+            # Conditional
+            cond_val = codegen(tree_node.cond, current_builder)
+
+            w_body_block = current_builder.append_basic_block("while_body")
+            w_after_block = current_builder.append_basic_block("while_end")
+
+            # head
+            current_builder.cbranch(cond_val, w_body_block, w_after_block)
+
+            # body
+            current_builder.position_at_start(w_body_block)
+            for elem in tree_node.body:
+                codegen(elem, current_builder)
+
+            # after
+            current_builder.position_at_start(w_after_block)
 
         # Function code generation
         elif isinstance(tree_node, FunctionAST):
@@ -908,6 +963,10 @@ def flatten(ast_node):
         else:
             else_block = [flatten(expr) for expr in ast_node.else_bl]
             return ['IF', cond, "THEN", then, "ELSE", else_block]
+    elif isinstance(ast_node, WhileExprAST):
+        cond = flatten(ast_node.cond)
+        body = [flatten(expr) for expr in ast_node.body]
+        return ['WHILE', cond, body]
     else:
         raise TypeError('Unknown type in flatten()')
 

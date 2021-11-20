@@ -1,8 +1,9 @@
-PROGRAM test5;
-VAR a;
+PROGRAM test3;
+VAR x;
 BEGIN
-    IF a >= 10 THEN
-    BEGIN
-        a := 5;
+    x := 4;
+    WHILE x > 0 DO BEGIN
+	    WRITE( x, x - 1 );
+        x := x - 1;
     END;
 END.
