@@ -816,37 +816,17 @@ def LLVMbackend():
         elif isinstance(tree_node, IfExprAST):
             # Conditionals
             cond_val = codegen(tree_node.cond, current_builder)
+            cmp = current_builder.icmp_signed(
+                '!=', cond_val, ir.Constant(ir.DoubleType(), 0.0))
 
             # Append blocks
-            then_bb = current_builder.function.append_basic_block('then')
-            else_bb = ir.Block(current_builder.function, 'else')
-            merge_bb = ir.Block(current_builder.function, 'ifcont')
-            current_builder.cbranch(cond_val, then_bb, else_bb)
-
-            # Emit the 'then' part
-            current_builder.position_at_start(then_bb)
-            then_val = codegen(tree_node.then_bl, current_builder)
-            current_builder.branch(merge_bb)
-
-            # Emission of then_val could have modified the current basic block. To
-            # properly set up the PHI, remember which block the 'then' part ends in.
-            then_bb = current_builder.block
-
-            # Emit the 'else' part
-            current_builder.function.basic_blocks.append(else_bb)
-            current_builder.position_at_start(else_bb)
-            else_val = codegen(tree_node.else_bl, current_builder)
-
-            # Emission of else_val could have modified the current basic block.
-            else_bb = current_builder.block
-            current_builder.branch(merge_bb)
-
-            # Emit the merge ('ifcnt') block
-            current_builder.function.basic_blocks.append(merge_bb)
-            current_builder.position_at_start(merge_bb)
-            phi = current_builder.phi(double, 'iftmp')
-            phi.add_incoming(then_val, then_bb)
-            phi.add_incoming(else_val, else_bb)
+            with current_builder.if_else(cmp) as (then, otherwise):
+                with then:
+                    for elem in tree_node.then_bl:
+                        codegen(elem, current_builder)
+                with otherwise:
+                    for elem in tree_node.else_bl:
+                        codegen(elem, current_builder)
 
         # Function code generation
         elif isinstance(tree_node, FunctionAST):
@@ -962,7 +942,7 @@ if __name__ == "__main__":
         # Print machine code module
         codegen_module = LLVMbackend()
         print('=== LLVM IR ===')
-        print(codegen_module)
+        print(str(codegen_module))
         print('=== END OF IR ===')
     else:
         print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!")
