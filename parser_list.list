@@ -4,8 +4,5 @@ BEGIN
     IF a >= 10 THEN
     BEGIN
         a := 5;
-    END
-    ELSE BEGIN
-         a := 10;
     END;
 END.

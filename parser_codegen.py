@@ -820,13 +820,18 @@ def LLVMbackend():
                 '!=', cond_val, ir.Constant(ir.DoubleType(), 0.0))
 
             # Append blocks
-            with current_builder.if_else(cmp) as (then, otherwise):
-                with then:
-                    for elem in tree_node.then_bl:
-                        codegen(elem, current_builder)
-                with otherwise:
-                    for elem in tree_node.else_bl:
-                        codegen(elem, current_builder)
+            if len(tree_node.else_bl) != 0:
+                with current_builder.if_else(cmp) as (then, otherwise):
+                    with then:
+                        for elem in tree_node.then_bl:
+                            codegen(elem, current_builder)
+                    with otherwise:
+                        for elem in tree_node.else_bl:
+                            codegen(elem, current_builder)
+            else:
+                current_builder.if_then(cmp)
+                for elem in tree_node.then_bl:
+                    codegen(elem, current_builder)
 
         # Function code generation
         elif isinstance(tree_node, FunctionAST):
