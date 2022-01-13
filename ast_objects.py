@@ -2,7 +2,6 @@
 from abc import ABC
 
 # AST hierarchy
-# Each node has a dump function that prints the AST
 class ASTNode(object):
     pass
 
