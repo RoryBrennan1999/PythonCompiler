@@ -753,9 +753,10 @@ def LLVMbackend():
     # Useful integer/void types
     double = ir.DoubleType()
     void = ir.VoidType()
+    integer = ir.IntType(32)
 
     # Function types for Read/Write and main func calls
-    main_func_type = ir.FunctionType(void, (void,))
+    main_func_type = ir.FunctionType(void, (double,))
     # var_arg defines whether this function can take additional arguments
     write_type = ir.FunctionType(void, (double,), var_arg=True)
     read_type = ir.FunctionType(void, (double,), var_arg=True)
@@ -796,13 +797,13 @@ def LLVMbackend():
             elif tree_node.op == 'DIVIDE':
                 return current_builder.fdiv(lhs, rhs, 'divtmp')
             elif tree_node.op == 'GREATEREQUAL':
-                return current_builder.icmp_signed(">=", lhs, rhs, "greateqtmp")
+                return current_builder.fcmp_ordered(">=", lhs, rhs, "greateqtmp")
             elif tree_node.op == 'LESS':
-                return current_builder.icmp_signed("<", lhs, rhs, "lesstmp")
+                return current_builder.fcmp_ordered("<", lhs, rhs, "lesstmp")
             elif tree_node.op == 'GREATER':
-                return current_builder.icmp_signed(">", lhs, rhs, "greatertmp")
+                return current_builder.fcmp_ordered(">", lhs, rhs, "greatertmp")
             elif tree_node.op == "LESSEQUAL":
-                return current_builder.icmp_signed("<=", lhs, rhs, "lesseqtmp")
+                return current_builder.fcmp_ordered("<=", lhs, rhs, "lesseqtmp")
             else:
                 raise CodegenError('Unknown binary operator', node.op)
         # Assignment operations
@@ -849,7 +850,7 @@ def LLVMbackend():
             if callee_func is None or not isinstance(callee_func, ir.Function):
                 raise CodegenError('Call to unknown function', node.callee)
             # Emit call instruction
-            null_arg = [ir.GlobalValue(module, void, "null")]
+            null_arg = [ir.Constant(double, "0")]
             current_builder.call(callee_func, null_arg, "calltmp")
         # Code generation for IF blocks
         elif isinstance(tree_node, IfExprAST):
@@ -884,6 +885,7 @@ def LLVMbackend():
             current_builder.position_at_start(w_body_block)
             for elem in tree_node.body:
                 codegen(elem, current_builder)
+            current_builder.ret_void()
 
             # after
             current_builder.position_at_start(w_after_block)
@@ -914,6 +916,8 @@ def LLVMbackend():
             # func_symtab[arg.val] = alloca
 
             [codegen(expr, current_builder) for expr in tree_node.body]
+
+            current_builder.ret_void()
 
         # Exit
         return 0
@@ -1003,11 +1007,30 @@ if __name__ == "__main__":
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
 
-        # Print machine code module
+        # Print IR module
         codegen_module = LLVMbackend()
         print('=== LLVM IR ===')
         print(str(codegen_module))
-        print('=== END OF IR ===')
+        print('=== END OF IR ===\n')
+
+        # Print machine code
+        llvmmod = llvm.parse_assembly(str(codegen_module))
+        target = llvm.Target.from_default_triple()
+        target_machine = target.create_target_machine()
+
+        # Optimize code
+        pmb = llvm.create_pass_manager_builder()
+        pmb.opt_level = 2
+        pm = llvm.create_module_pass_manager()
+        pmb.populate(pm)
+        pm.run(llvmmod)
+
+        with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
+            ee.finalize_object()
+            print('=== Machine Code ===')
+            print(target_machine.emit_assembly(llvmmod))
+            print('=== End of Machine Code ===')
+
     else:
         print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!")
 
