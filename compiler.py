@@ -47,7 +47,7 @@ except IndexError:
 try:
     inputFile = open(inputFileName, 'r')
 except IOError:
-    print("Error. File does not appear to exist.")
+    print("Error. Input File does not appear to exist.")
     sys.exit()
 
 # Global variables used for iterating through tokens array
@@ -68,7 +68,19 @@ except IndexError:
 try:
     listFile = open(listFileName, 'w')
 except IOError:
-    print("Error. File does not appear to exist.")
+    print("Error. List File does not appear to exist.")
+    sys.exit()
+
+# Open code file for writing
+try:
+    codeFileName = sys.argv[3]
+except IndexError:
+    print("Error. No code file given.")
+    sys.exit()
+try:
+    codeFile = open(codeFileName, 'w')
+except IOError:
+    print("Error. Code File does not appear to exist.")
     sys.exit()
 
 # Abstract Syntax Tree for input program
@@ -1031,11 +1043,15 @@ if __name__ == "__main__":
             print(target_machine.emit_assembly(llvmmod))
             print('=== End of Machine Code ===')
 
+            # Write to machine code file
+            codeFile.write(target_machine.emit_assembly(llvmmod))
+
     else:
         print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!")
 
     # Close all files when done
     inputFile.close()
     listFile.close()
+    codeFile.close()
 
     print("\n=== End of Compiler Report ===")
