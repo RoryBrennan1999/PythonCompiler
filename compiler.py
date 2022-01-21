@@ -1032,16 +1032,16 @@ if __name__ == "__main__":
 
         # Optimize code
         pmb = llvm.create_pass_manager_builder()
-        pmb.opt_level = 2
+        pmb.opt_level = 3
         pm = llvm.create_module_pass_manager()
         pmb.populate(pm)
         pm.run(llvmmod)
 
         with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
             ee.finalize_object()
-            print('=== Machine Code ===')
-            print(target_machine.emit_assembly(llvmmod))
-            print('=== End of Machine Code ===')
+            #print('=== Optimized Machine Code ===')
+            #print(target_machine.emit_assembly(llvmmod))
+            #print('=== End of Machine Code ===')
 
             # Write to machine code file
             codeFile.write(target_machine.emit_assembly(llvmmod))
