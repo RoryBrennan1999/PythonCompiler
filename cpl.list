@@ -1,7 +1,10 @@
-PROGRAM test1;
-VAR x, y;
-BEGIN ! start of main
-    WRITE( y, 5 );
-    READ( x );
-    x := 28 + y;
+PROGRAM test4;
+VAR a, b;
+PROCEDURE copy(x);
+	BEGIN
+	    WRITE( a , x );
+	END;
+BEGIN
+	b := 40;
+	copy(20);
 END.

@@ -1,9 +1,10 @@
 PROGRAM test4;
 VAR a, b;
-PROCEDURE copy(x, y);
+PROCEDURE copy(x);
 	BEGIN
+	    WRITE( a , x );
 	END;
 BEGIN
-	a := 20;
 	b := 40;
+	copy(20);
 END.
