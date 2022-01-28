@@ -1,0 +1,5 @@
+PROGRAM test7;
+VAR  x, y;
+BEGIN
+    WHILE x > 0 BEGIN y := x; END;
+END.

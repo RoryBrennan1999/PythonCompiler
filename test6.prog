@@ -1,0 +1,12 @@
+PROGRAM test6;
+VAR x, y;
+
+PROCEDURE muck ( REF x );
+y;              ! VAR omitted
+BEGIN
+    y := x + 234 * y;
+;               ! END omitted
+
+BEGIN           ! main program starts here
+    muck( x );
+END             ! missing EOF
