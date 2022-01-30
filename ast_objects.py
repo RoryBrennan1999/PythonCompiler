@@ -16,8 +16,9 @@ class NumberExprAST(ExprAST):
 
 
 class VariableExprAST(ExprAST):
-    def __init__(self, val):
+    def __init__(self, val, scope=0):
         self.val = val
+        self.scope = scope
 
 
 class BinaryExprAST(ExprAST):
@@ -60,10 +61,11 @@ class CallExprASTNP(ExprAST):
         self.callee = callee
 
 class FunctionAST(ASTNode):
-    def __init__(self, proto, args, body):
+    def __init__(self, proto, args, body, locals):
         self.proto = proto
         self.body = body
         self.args = args
+        self.locals = locals
 
     def clear(self):
         self.proto = None

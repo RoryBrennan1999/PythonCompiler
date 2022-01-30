@@ -46,13 +46,13 @@ except IndexError:
     sys.exit()
 try:
     inputFile = open(inputFileName, 'r')
+    tokens = scanner(inputFile.read())  # Scan in input as tokens
 except IOError:
     print("Error. Input File does not appear to exist.")
     sys.exit()
 
 # Global variables used for iterating through tokens array
 token_index = 0
-tokens = scanner(inputFile.read())
 current_token = tokens[token_index]
 
 # Read in line data for error insertion (must be read in twice which is not ideal memory wise)
@@ -93,7 +93,7 @@ func_write_args = []
 binary_expr = BinaryExprAST(None, None, None)
 
 # Blank global object for filling function body/proto
-function_proto_body = FunctionAST(None, None, None)
+function_proto_body = FunctionAST(None, None, None, None)
 
 # Blank global object for if and while blocks
 if_object = IfExprAST(None, None, None)
@@ -104,7 +104,7 @@ func_flag = False
 if_then_flag = False
 if_else_flag = False
 while_flag = False
-write_flag = False
+arg_flag = False
 
 # Global flag to signal that parser encountered an error
 error_present = False
@@ -171,14 +171,21 @@ def accept(expected_token):
 
 # Parse one or more variable declaration
 def parse_decl():
+
     accept("VAR")
-    ast.append(VariableExprAST(current_token[1]))
+    if func_flag:
+        function_proto_body.locals.append(VariableExprAST(current_token[1],scope=1))
+    else:
+        ast.append(VariableExprAST(current_token[1]))
     accept("IDENTIFIER")
 
     # Repetition triggered by a ","
     while current_token[0] == "COMMA":
         accept("COMMA")
-        ast.append(VariableExprAST(current_token[1]))
+        if func_flag:
+            function_proto_body.locals.append(VariableExprAST(current_token[1]))
+        else:
+            ast.append(VariableExprAST(current_token[1]))
         accept("IDENTIFIER")
 
     accept("SEMICOLON")
@@ -268,7 +275,7 @@ def parse_subterm():
         accept("IDENTIFIER")
 
         # Parse write parameters
-        if write_flag:
+        if arg_flag:
             parse_write_par(temp_token)
 
     elif current_token[0] == "INTCONST":
@@ -276,7 +283,7 @@ def parse_subterm():
         accept("INTCONST")
 
         # Parse write parameters
-        if write_flag:
+        if arg_flag:
             parse_write_par(temp_token)
 
     else:
@@ -366,19 +373,27 @@ def parse_proc_call_list(identifier):
     accept("LEFTPARENTHESIS")
 
     # Clear global array for arguments
+    binary_expr.clear()
     func_write_args.clear()
 
+    global arg_flag
+    arg_flag = True
+
     # Parse first parameter
-    parse_actual_parameter()
+    parse_expression()
 
     # Check for more parameters
     while current_token[0] == "COMMA":
         accept("COMMA")
-        parse_actual_parameter()
+        parse_expression()
 
     accept("RIGHTPARENTHESIS")
 
-    # Append function call onto AST
+    # Append binary expression node onto arguments list
+    if binary_expr.lhs is not None:
+        func_write_args.append(BinaryExprAST(binary_expr.op, binary_expr.lhs, binary_expr.rhs))
+
+    # Turn arguments into list
     arguments = list(func_write_args)
 
     # Append function call onto AST
@@ -392,6 +407,9 @@ def parse_proc_call_list(identifier):
         while_object.body.append(CallExprAST(identifier, arguments))
     else:
         ast.append(CallExprAST(identifier, arguments))
+
+    # End of argument parsing
+    arg_flag = False
 
 
 # Parse binary expression assignment
@@ -584,7 +602,7 @@ def parse_read():
         if_object.then_bl.append(ReadExprAST("READ", arguments))
     elif if_else_flag:
         if_object.else_bl.append(ReadExprAST("READ", arguments))
-    elif write_flag:
+    elif arg_flag:
         while_object.body.append(ReadExprAST("READ", arguments))
     else:
         ast.append(ReadExprAST("READ", arguments))
@@ -602,8 +620,8 @@ def parse_write():
     func_write_args.clear()
 
     # Signal flag
-    global write_flag
-    write_flag = True
+    global arg_flag
+    arg_flag = True
 
     # Parse through Write call
     accept("WRITE")
@@ -638,7 +656,7 @@ def parse_write():
     accept("RIGHTPARENTHESIS")
 
     # End of write call
-    write_flag = False
+    arg_flag = False
 
 
 # Parse various types of statements
@@ -687,6 +705,7 @@ def parse_procdecl():
     # Add identifier to AST node
     function_proto_body.proto = current_token[1]
     function_proto_body.body = list()
+    function_proto_body.locals = list()
     accept("IDENTIFIER")
 
     # Implement [] brackets with if statement
@@ -697,9 +716,11 @@ def parse_procdecl():
 
     # Resynchronise with augmented sets if error occurs
     synchro(ProcDecFS1_aug, ProcDecFBS)
+
     # Parse variables if present
     if current_token[0] == "VAR":
         parse_decl()
+
     synchro(ProcDecFS2_aug, ProcDecFBS)
 
     # Recursively parse procedures if more than one present
@@ -713,7 +734,7 @@ def parse_procdecl():
     accept("SEMICOLON")
 
     # Append function onto AST
-    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.args, function_proto_body.body))
+    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.args, function_proto_body.body, function_proto_body.locals))
 
     # Clear function object
     function_proto_body.clear()
@@ -750,7 +771,7 @@ def parse_program():
     parse_block()
 
     # Append main function onto AST
-    ast.append(FunctionAST(function_proto_body.proto, None, function_proto_body.body))
+    ast.append(FunctionAST(function_proto_body.proto, None, function_proto_body.body, None))
 
     # Deassert flag and clear object
     func_flag = False
@@ -771,12 +792,12 @@ def parse_program():
 class CodegenError(Exception):
     pass
 
-global_symtab = dict()
-
+from collections import ChainMap
 
 def LLVMbackend():
     # Initialize code generator (set module name to input file name)
     module = ir.Module(name=inputFileName)
+    module.triple, module.data_layout = llvm.get_process_triple(), ""
 
     # Useful integer/void types
     double = ir.DoubleType()
@@ -793,13 +814,17 @@ def LLVMbackend():
 
     # Manages a symbol table while a function is being codegen'd. Maps var
     # names to ir.Value.
-    global global_symtab
+    global_symtab = {}
 
     # Inner Function that actually generates code using AST
     def codegen(tree_node, current_builder):
         lhs, rhs = None, None
         if isinstance(tree_node, VariableExprAST):
-            global_symtab[tree_node.val] = ir.GlobalVariable(module, double, tree_node.val)
+            if tree_node.scope != 1:
+                var = ir.GlobalVariable(module, double, name=tree_node.val)
+                global_symtab[tree_node.val] = var
+            else:
+                global_symtab[tree_node.val] = current_builder.alloca(double, name=tree_node.val)
         # Code generation for binary expressions
         elif isinstance(tree_node, BinaryExprAST):
             if isinstance(tree_node.lhs, NumberExprAST):
@@ -884,9 +909,13 @@ def LLVMbackend():
             current_builder.call(callee_func, null_arg, "calltmp")
         # Code generation for function calls (No parameters)
         elif isinstance(tree_node, CallExprAST):
-            callee_func = module.get_global(tree_node.callee)
-            if callee_func is None or not isinstance(callee_func, ir.Function):
-                raise CodegenError('Call to unknown function', node.callee)
+            # Try to call function, if it doesnt exist raise an error
+            try:
+                callee_func = module.get_global(tree_node.callee)
+            except:
+                raise CodegenError('Call to unknown function', tree_node.callee)
+            if len(callee_func.args) != len(tree_node.args):
+                raise CodegenError('Call argument length mismatch', tree_node.callee)
             # Parse args
             call_args = []
             for expr in tree_node.args:
@@ -945,19 +974,34 @@ def LLVMbackend():
                 func = ir.Function(module, func_type, name=tree_node.proto)
             else:
                 func = ir.Function(module, main_func_type, name=tree_node.proto)
+
+            # Append entry block
             block = func.append_basic_block("entry")
 
             # Update current builder
             current_builder = ir.IRBuilder(block)
 
+            # All local variables are stored here
+            locals = {}
+
+            vars = ChainMap(locals, global_symtab)
+
+            # Allocate arguments
             if tree_node.args is not None:
                 # Add all arguments to the symbol table and create their allocas
                 for i, arg in enumerate(tree_node.args):
                     global_symtab[arg.val] = current_builder.alloca(double, name=arg.val)
                     current_builder.store(current_builder.function.args[i], global_symtab[arg.val])
 
+            # Begin codegen of function body
+            if tree_node.locals is not None:
+                [codegen(expr, current_builder) for expr in tree_node.locals]
+
+            # Begin codegen of function body
             [codegen(expr, current_builder) for expr in tree_node.body]
 
+            # return void
+            current_builder.position_at_end(block)
             current_builder.ret_void()
 
         # Exit
@@ -1020,14 +1064,14 @@ def flatten(ast_node):
 # "parse_program" to start the parse
 if __name__ == "__main__":
     # Print tokens
-    # for token in tokens:
-    # print(token)
+    for token in tokens:
+        print(token)
 
     # Begin parsing (errors will also be inserted to list file when parsing
     parse_program()
 
     # Parsing done
-    print("=== Compiler Report ===\nParsing finished completely.\nCheck list file for errors (if present).\n")
+    print("\n=== Compiler Report ===\nParsing finished successfully.\nCheck list file for errors (if present).\n")
 
     # Write to list file
     listFile.writelines(line_data)
@@ -1083,4 +1127,4 @@ if __name__ == "__main__":
     listFile.close()
     codeFile.close()
 
-    print("\n=== End of Compiler Report ===")
+    print("=== End of Compiler Report ===")
