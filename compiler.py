@@ -105,6 +105,7 @@ if_then_flag = False
 if_else_flag = False
 while_flag = False
 arg_flag = False
+neg_flag = False
 
 # Global flag to signal that parser encountered an error
 error_present = False
@@ -251,6 +252,8 @@ def parse_write_par(temp_token):
             binary_expr.lhs = NumberExprAST(temp_token[1])
         elif binary_expr.lhs is not None and binary_expr.rhs is None:
             binary_expr.rhs = NumberExprAST(temp_token[1])
+        elif neg_flag:
+            func_write_args.append(NumberExprAST(-1 * int(temp_token[1])))
         else:
             func_write_args.append(NumberExprAST(temp_token[1]))  # Append onto arguments array
 
@@ -293,8 +296,10 @@ def parse_subterm():
 
 # Parse subtraction terms
 def parse_term():
+    global neg_flag
     if current_token[0] == "SUBTRACT":
         accept("SUBTRACT")
+        neg_flag = True
 
     parse_subterm()
 
@@ -450,7 +455,8 @@ def parse_assignment(identifier):
     temp_token = current_token
 
     # Handle negative number constant assignment
-    neg_flag = False
+    global neg_flag
+    # Parse negative integer constants else continue
     if temp_token[1] == "-":
         neg_flag = True
         accept("SUBTRACT")
