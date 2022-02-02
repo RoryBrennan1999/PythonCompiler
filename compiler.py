@@ -32,7 +32,7 @@ from sets import (
     StatementFBS,
 )
 
-import llvmlite.ir as ir
+import llvmlite.ir as ir  # llvmlite for IR code
 import llvmlite.binding as llvm  # llvmlite for code generation
 from scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
@@ -171,10 +171,9 @@ def accept(expected_token):
 
 # Parse one or more variable declaration
 def parse_decl():
-
     accept("VAR")
     if func_flag:
-        function_proto_body.locals.append(VariableExprAST(current_token[1],scope=1))
+        function_proto_body.locals.append(VariableExprAST(current_token[1], scope=1))
     else:
         ast.append(VariableExprAST(current_token[1]))
     accept("IDENTIFIER")
@@ -183,7 +182,7 @@ def parse_decl():
     while current_token[0] == "COMMA":
         accept("COMMA")
         if func_flag:
-            function_proto_body.locals.append(VariableExprAST(current_token[1]))
+            function_proto_body.locals.append(VariableExprAST(current_token[1], scope=1))
         else:
             ast.append(VariableExprAST(current_token[1]))
         accept("IDENTIFIER")
@@ -443,12 +442,22 @@ def parse_binary_assignment(identifier):
 
 # Parse assignment
 def parse_assignment(identifier):
+
     # Reset binary expressions
     binary_expr.clear()
 
     accept("ASSIGNMENT")
     temp_token = current_token
-    parse_binary_assignment(identifier)
+
+    # Handle negative number constant assignment
+    neg_flag = False
+    if temp_token[1] == "-":
+        neg_flag = True
+        accept("SUBTRACT")
+        temp_token = current_token
+        accept("INTCONST")
+    else:
+        parse_binary_assignment(identifier)
 
     # If statement to check for single identifier/number or binary expression
     args = []
@@ -457,8 +466,10 @@ def parse_assignment(identifier):
     else:
         if temp_token[0] == "IDENTIFIER":
             args = [VariableExprAST(temp_token[1])]
-        elif temp_token[0] == "INTCONST":
+        elif temp_token[0] == "INTCONST" and not neg_flag:
             args = [NumberExprAST(temp_token[1])]
+        elif temp_token[0] == "INTCONST" and neg_flag: # Negative constant on its own
+            args = [NumberExprAST(-1 * int(temp_token[1]))]
 
     # Append binary assignment onto AST
     if func_flag and not if_then_flag and not if_else_flag and not while_flag:
@@ -472,6 +483,7 @@ def parse_assignment(identifier):
     else:
         ast.append(BinaryAssignAST(identifier, args))
 
+    neg_flag = False
 
 # Parse simple statement which can be an assignment or a procedure call
 def parse_rest_of_statement(temp_token):
@@ -502,7 +514,6 @@ def parse_simple_statement():
 
 # Parse WHILE block
 def parse_while():
-
     # Signal flag
     global while_flag
     while_flag = True
@@ -537,7 +548,6 @@ def parse_while():
 
 # Parse IF block
 def parse_if():
-
     # Signal flag
     global if_then_flag
     if_then_flag = True
@@ -734,7 +744,8 @@ def parse_procdecl():
     accept("SEMICOLON")
 
     # Append function onto AST
-    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.args, function_proto_body.body, function_proto_body.locals))
+    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.args, function_proto_body.body,
+                           function_proto_body.locals))
 
     # Clear function object
     function_proto_body.clear()
@@ -792,7 +803,9 @@ def parse_program():
 class CodegenError(Exception):
     pass
 
+
 from collections import ChainMap
+
 
 def LLVMbackend():
     # Initialize code generator (set module name to input file name)
@@ -1085,7 +1098,7 @@ if __name__ == "__main__":
     pp.pprint(pretty_tree)
     print("=== END OF AST ===\n")
 
-    #error_present = True
+    # error_present = True
     # Begin code generation
     if not error_present:  # Do not generate code if errors present
         llvm.initialize()
@@ -1112,9 +1125,9 @@ if __name__ == "__main__":
 
         with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
             ee.finalize_object()
-            #print('=== Optimized Machine Code ===')
-            #print(target_machine.emit_assembly(llvmmod))
-            #print('=== End of Machine Code ===')
+            # print('=== Optimized Machine Code ===')
+            # print(target_machine.emit_assembly(llvmmod))
+            # print('=== End of Machine Code ===')
 
             # Write to machine code file
             codeFile.write(target_machine.emit_assembly(llvmmod))
