@@ -1,10 +1,16 @@
-PROGRAM test4;
-VAR a, b;
-PROCEDURE copy(x);
+PROGRAM test6;
+VAR a;
+PROCEDURE y;
+	VAR z, w;
+		PROCEDURE q;
+			BEGIN
+				z := 20;
+			END;
 	BEGIN
-	    WRITE( a , x );
-	END;
+		z := 100;
+		WRITE(z - w);
+		q;
+    END;
 BEGIN
-	b := 40;
-	copy(20);
+	y;
 END.

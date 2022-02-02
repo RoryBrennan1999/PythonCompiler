@@ -1,10 +1,12 @@
 PROGRAM test4;
 VAR a, b;
 PROCEDURE copy(x);
+    VAR c;
 	BEGIN
 	    WRITE( a , x );
+	    c := 10;
 	END;
 BEGIN
 	b := 40;
-	copy(20);
+	copy( b + 50 );
 END.
