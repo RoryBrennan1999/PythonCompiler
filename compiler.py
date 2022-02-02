@@ -94,6 +94,7 @@ binary_expr = BinaryExprAST(None, None, None)
 
 # Blank global object for filling function body/proto
 function_proto_body = FunctionAST(None, None, None, None)
+final_func_block = FunctionAST(None, None, None, None)
 
 # Blank global object for if and while blocks
 if_object = IfExprAST(None, None, None)
@@ -106,6 +107,7 @@ if_else_flag = False
 while_flag = False
 arg_flag = False
 neg_flag = False
+scope = 0
 
 # Global flag to signal that parser encountered an error
 error_present = False
@@ -172,9 +174,15 @@ def accept(expected_token):
 
 # Parse one or more variable declaration
 def parse_decl():
+    # Scope global variable for variable parsing
+    global scope
+
     accept("VAR")
     if func_flag:
-        function_proto_body.locals.append(VariableExprAST(current_token[1], scope=1))
+        if scope > 1:
+            function_proto_body.locals.append(VariableExprAST(current_token[1], scope=scope))
+        else:
+            final_func_block.locals.append(VariableExprAST(current_token[1], scope=scope))
     else:
         ast.append(VariableExprAST(current_token[1]))
     accept("IDENTIFIER")
@@ -183,7 +191,10 @@ def parse_decl():
     while current_token[0] == "COMMA":
         accept("COMMA")
         if func_flag:
-            function_proto_body.locals.append(VariableExprAST(current_token[1], scope=1))
+            if scope > 1:
+                function_proto_body.locals.append(VariableExprAST(current_token[1], scope=scope))
+            else:
+                final_func_block.locals.append(VariableExprAST(current_token[1], scope=scope))
         else:
             ast.append(VariableExprAST(current_token[1]))
         accept("IDENTIFIER")
@@ -219,7 +230,10 @@ def parse_parameters():
 
     # Append parameters to function
     arguments = list(func_write_args)
-    function_proto_body.args = arguments
+    if scope > 1:
+        function_proto_body.args = arguments
+    else:
+        final_func_block.args = arguments
     accept("RIGHTPARENTHESIS")
 
 
@@ -401,16 +415,16 @@ def parse_proc_call_list(identifier):
     arguments = list(func_write_args)
 
     # Append function call onto AST
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag:
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
         function_proto_body.body.append(CallExprAST(identifier, arguments))
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
+        final_func_block.body.append(CallExprAST(identifier, arguments))
     elif if_then_flag:
         if_object.then_bl.append(CallExprAST(identifier, arguments))
     elif if_else_flag:
         if_object.else_bl.append(CallExprAST(identifier, arguments))
     elif while_flag:
         while_object.body.append(CallExprAST(identifier, arguments))
-    else:
-        ast.append(CallExprAST(identifier, arguments))
 
     # End of argument parsing
     arg_flag = False
@@ -447,7 +461,6 @@ def parse_binary_assignment(identifier):
 
 # Parse assignment
 def parse_assignment(identifier):
-
     # Reset binary expressions
     binary_expr.clear()
 
@@ -474,22 +487,23 @@ def parse_assignment(identifier):
             args = [VariableExprAST(temp_token[1])]
         elif temp_token[0] == "INTCONST" and not neg_flag:
             args = [NumberExprAST(temp_token[1])]
-        elif temp_token[0] == "INTCONST" and neg_flag: # Negative constant on its own
+        elif temp_token[0] == "INTCONST" and neg_flag:  # Negative constant on its own
             args = [NumberExprAST(-1 * int(temp_token[1]))]
 
     # Append binary assignment onto AST
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag:
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
         function_proto_body.body.append(BinaryAssignAST(identifier, args))
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
+        final_func_block.body.append(BinaryAssignAST(identifier, args))
     elif if_then_flag:
         if_object.then_bl.append(BinaryAssignAST(identifier, args))
     elif if_else_flag:
         if_object.else_bl.append(BinaryAssignAST(identifier, args))
     elif while_flag:
         while_object.body.append(BinaryAssignAST(identifier, args))
-    else:
-        ast.append(BinaryAssignAST(identifier, args))
 
     neg_flag = False
+
 
 # Parse simple statement which can be an assignment or a procedure call
 def parse_rest_of_statement(temp_token):
@@ -499,16 +513,16 @@ def parse_rest_of_statement(temp_token):
         parse_assignment(temp_token)
     elif current_token[0] == "SEMICOLON":
         # Append function call onto AST
-        if func_flag and not if_then_flag and not if_else_flag and not while_flag:
+        if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
             function_proto_body.body.append(CallExprASTNP(temp_token))
+        elif func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
+            final_func_block.body.append(CallExprASTNP(temp_token))
         elif if_then_flag:
             if_object.then_bl.append(CallExprASTNP(temp_token))
         elif if_else_flag:
             if_object.else_bl.append(CallExprASTNP(temp_token))
         elif while_flag:
             while_object.body.append(CallExprASTNP(temp_token))
-        else:
-            ast.append(CallExprASTNP(temp_token))
 
 
 # Parse simple statement
@@ -542,14 +556,14 @@ def parse_while():
     while_flag = False
 
     # Insert into AST/ function body
-    if func_flag and not if_then_flag and not if_else_flag:
+    if func_flag and not if_then_flag and not if_else_flag and scope > 1:
         function_proto_body.body.append(WhileExprAST(while_object.cond, while_object.body))
+    elif func_flag and not if_then_flag and not if_else_flag and scope <= 1:
+        final_func_block.body.append(WhileExprAST(while_object.cond, while_object.body))
     elif if_then_flag:
         if_object.then_bl.append(WhileExprAST(while_object.cond, while_object.body))
     elif if_else_flag:
         if_object.else_bl.append(WhileExprAST(while_object.cond, while_object.body))
-    else:
-        ast.append(WhileExprAST(while_object.cond, while_object.body))
 
 
 # Parse IF block
@@ -585,12 +599,12 @@ def parse_if():
         accept("ELSE")
         parse_block()
 
-    if func_flag and not while_flag:
+    if func_flag and not while_flag and scope > 1:
         function_proto_body.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
+    elif func_flag and not while_flag and scope <= 1:
+        final_func_block.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
     elif while_flag:
         while_object.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
-    else:
-        ast.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
 
     if_else_flag = False
 
@@ -612,16 +626,16 @@ def parse_read():
         accept("IDENTIFIER")
 
     # Insert into AST/ function body
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag:
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
         function_proto_body.body.append(ReadExprAST("READ", arguments))
+    elif func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
+        final_func_block.body.append(ReadExprAST("READ", arguments))
     elif if_then_flag:
         if_object.then_bl.append(ReadExprAST("READ", arguments))
     elif if_else_flag:
         if_object.else_bl.append(ReadExprAST("READ", arguments))
-    elif arg_flag:
+    elif while_flag:
         while_object.body.append(ReadExprAST("READ", arguments))
-    else:
-        ast.append(ReadExprAST("READ", arguments))
 
     # End of read statement
     accept("RIGHTPARENTHESIS")
@@ -657,16 +671,16 @@ def parse_write():
 
     # Insert into AST or function body
     arguments = list(func_write_args)
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag:
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
         function_proto_body.body.append(WriteExprAST("WRITE", arguments))
+    elif func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
+        final_func_block.body.append(WriteExprAST("WRITE", arguments))
     elif if_then_flag:
         if_object.then_bl.append(WriteExprAST("WRITE", arguments))
     elif if_else_flag:
         if_object.else_bl.append(WriteExprAST("WRITE", arguments))
     elif while_flag:
         while_object.body.append(WriteExprAST("WRITE", arguments))
-    else:
-        ast.append(WriteExprAST("WRITE", arguments))
 
     # End of write statement
     accept("RIGHTPARENTHESIS")
@@ -711,17 +725,28 @@ def parse_block():
 
 
 # Parse procedure declaration and parameters
+# proc_scope allows to recursively parse procedures within other procedures
 def parse_procdecl():
     accept("PROCEDURE")
+
+    # Increment scope
+    global scope
+    scope = scope + 1
 
     # Signal flag
     global func_flag
     func_flag = True
 
     # Add identifier to AST node
-    function_proto_body.proto = current_token[1]
-    function_proto_body.body = list()
-    function_proto_body.locals = list()
+    if scope > 1: # If outer function or inner function
+        function_proto_body.proto = current_token[1]
+        function_proto_body.body = list()
+        function_proto_body.locals = list()
+    else:
+        final_func_block.proto = current_token[1]
+        final_func_block.body = list()
+        final_func_block.locals = list()
+
     accept("IDENTIFIER")
 
     # Implement [] brackets with if statement
@@ -750,12 +775,18 @@ def parse_procdecl():
     accept("SEMICOLON")
 
     # Append function onto AST
-    ast.append(FunctionAST(function_proto_body.proto, function_proto_body.args, function_proto_body.body,
-                           function_proto_body.locals))
-
-    # Clear function object
-    function_proto_body.clear()
-    func_flag = False
+    if scope > 1:
+        final_func_block.body.append(
+            FunctionAST(function_proto_body.proto, function_proto_body.args, function_proto_body.body,
+                        function_proto_body.locals, scope=scope))
+        scope = scope - 1
+        function_proto_body.clear()
+    else:
+        ast.append(FunctionAST(final_func_block.proto, final_func_block.args, final_func_block.body,
+                               final_func_block.locals))
+        final_func_block.clear()
+        # Clear function flag
+        func_flag = False
 
 
 # Recursive-descent implementation of the grammar's productions.
@@ -781,18 +812,19 @@ def parse_program():
     # Signal function object flag
     global func_flag
     func_flag = True
-    function_proto_body.body = list()
-    function_proto_body.proto = "main"
+    function_proto_body.clear()
+    final_func_block.body = list()
+    final_func_block.proto = "main"
 
     # Begin parsing main block of code
     parse_block()
 
     # Append main function onto AST
-    ast.append(FunctionAST(function_proto_body.proto, None, function_proto_body.body, None))
+    ast.append(FunctionAST(final_func_block.proto, None, final_func_block.body, None, scope=0))
 
     # Deassert flag and clear object
     func_flag = False
-    function_proto_body.clear()
+    final_func_block.clear()
 
     # '.' has name ENDOFPROGRAM
     accept("ENDOFPROGRAM")
@@ -834,12 +866,17 @@ def LLVMbackend():
     # Manages a symbol table while a function is being codegen'd. Maps var
     # names to ir.Value.
     global_symtab = {}
+    outer_locals = []
+
+    # Create IR function READ and WRITE object
+    read_func = ir.Function(module, read_type, name="READ")
+    write_func = ir.Function(module, write_type, name="WRITE")
 
     # Inner Function that actually generates code using AST
     def codegen(tree_node, current_builder):
         lhs, rhs = None, None
         if isinstance(tree_node, VariableExprAST):
-            if tree_node.scope != 1:
+            if tree_node.scope < 1:
                 var = ir.GlobalVariable(module, double, name=tree_node.val)
                 global_symtab[tree_node.val] = var
             else:
@@ -892,8 +929,6 @@ def LLVMbackend():
             current_builder.store(rhs_val, global_symtab[tree_node.identifier])
         # Code generation for Write calls (equivalent to assignment calls)
         elif isinstance(tree_node, WriteExprAST):
-            # Create IR function object
-            write_func = ir.Function(module, write_type, name="WRITE")
             # Parse args
             call_args = []
             for expr in tree_node.args:
@@ -907,8 +942,6 @@ def LLVMbackend():
             current_builder.call(write_func, call_args, "calltmp")
         # Code generation for Read calls
         elif isinstance(tree_node, ReadExprAST):
-            # Create IR function object
-            read_func = ir.Function(module, read_type, name="READ")
             # Parse args
             call_args = []
             for expr in tree_node.args:
@@ -979,6 +1012,7 @@ def LLVMbackend():
             current_builder.position_at_start(w_body_block)
             for elem in tree_node.body:
                 codegen(elem, current_builder)
+
             current_builder.ret_void()
 
             # after
@@ -994,9 +1028,7 @@ def LLVMbackend():
             else:
                 func = ir.Function(module, main_func_type, name=tree_node.proto)
 
-            # Append entry block
             block = func.append_basic_block("entry")
-
             # Update current builder
             current_builder = ir.IRBuilder(block)
 
@@ -1012,15 +1044,35 @@ def LLVMbackend():
                     global_symtab[arg.val] = current_builder.alloca(double, name=arg.val)
                     current_builder.store(current_builder.function.args[i], global_symtab[arg.val])
 
-            # Begin codegen of function body
+            # Begin codegen of function local variables
             if tree_node.locals is not None:
                 [codegen(expr, current_builder) for expr in tree_node.locals]
+                if tree_node.scope < 2:
+                    for var in tree_node.locals:
+                        outer_locals.append(var.val)
+
+            # print(outer_locals)
+
+            # if tree_node.scope >= 2:
+            #     for var in outer_locals:
+            #         current_builder.load(global_symtab[var], name=var)
 
             # Begin codegen of function body
+            # for expr in tree_node.body:
+            #     if isinstance(expr, FunctionAST):
+            #         func_block = func.append_basic_block(name=expr.proto)
+            #         # Update current builder
+            #         current_builder = ir.IRBuilder(func_block)
+            #         [codegen(expr, current_builder) for expr in expr.locals]
+            #         [codegen(expr, current_builder) for expr in expr.body]
+            #         current_builder.ret_void()
+            #     else:
+            #         current_builder = ir.IRBuilder(block)
+            #         codegen(expr, current_builder)
+
             [codegen(expr, current_builder) for expr in tree_node.body]
 
             # return void
-            current_builder.position_at_end(block)
             current_builder.ret_void()
 
         # Exit

@@ -1,0 +1,16 @@
+PROGRAM test6;
+VAR a;
+PROCEDURE y;
+	VAR z, w;
+		PROCEDURE q;
+			BEGIN
+				z := 20;
+			END;
+	BEGIN
+		z := 100;
+		WRITE(z - w);
+		q;
+    END;
+BEGIN
+	y;
+END.
