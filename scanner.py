@@ -72,7 +72,8 @@ def scanner(code):
         ('GREATER', r'>'),  # Greater than
         ('ENDOFPROGRAM', r'\.'),  # End of Program
         ('NEWLINE', r'\n'),  # Line endings
-        ('SKIP', r'[ \t]+|! [A-Za-z\d ]+'),  # Skip over spaces, comments and tabs
+        ('SKIP', r'[ \t]+'),  # Skip over spaces, comments and tabs
+        ('COMMENT', r'!.*[\n]*'),
         ('MISMATCH', r'.'),  # Any other character
     ]
 
@@ -99,7 +100,7 @@ def scanner(code):
             line_start = element.end()  # end() returns the ending position of the match
             line_num += 1  # Iterate position attribute
             continue
-        elif kind == 'SKIP':
+        elif kind == 'SKIP' or kind == "COMMENT":
             continue
         elif kind == 'MISMATCH':  # Throw error if token is not recognised
             raise RuntimeError(f'{value!r} unexpected on line {line_num}')

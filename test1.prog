@@ -1,3 +1,6 @@
+!
+!               Test Program
+!
 PROGRAM test1;
 VAR x, y;
 BEGIN ! start of main
