@@ -738,7 +738,7 @@ def parse_procdecl():
     func_flag = True
 
     # Add identifier to AST node
-    if scope > 1: # If outer function or inner function
+    if scope > 1:  # If outer function or inner function
         function_proto_body.proto = current_token[1]
         function_proto_body.body = list()
         function_proto_body.locals = list()
@@ -953,7 +953,11 @@ def LLVMbackend():
             current_builder.call(read_func, call_args, "calltmp")
         # Code generation for function calls (No parameters)
         elif isinstance(tree_node, CallExprASTNP):
-            callee_func = module.get_global(tree_node.callee)
+            # Try to call function, if it doesnt exist raise an error
+            try:
+                callee_func = module.get_global(tree_node.callee)
+            except:
+                raise CodegenError('Call to unknown function', tree_node.callee)
             if callee_func is None or not isinstance(callee_func, ir.Function):
                 raise CodegenError('Call to unknown function', node.callee)
             # Emit call instruction
@@ -1035,7 +1039,7 @@ def LLVMbackend():
             # All local variables are stored here
             locals = {}
 
-            vars = ChainMap(locals, global_symtab)
+            # vars = ChainMap(locals, global_symtab)
 
             # Allocate arguments
             if tree_node.args is not None:
@@ -1053,9 +1057,10 @@ def LLVMbackend():
 
             # print(outer_locals)
 
-            # if tree_node.scope >= 2:
-            #     for var in outer_locals:
-            #         current_builder.load(global_symtab[var], name=var)
+            if tree_node.scope >= 2:
+                for i, var in enumerate(outer_locals):
+                    global_symtab[var] = current_builder.alloca(double, name=var)
+                    current_builder.load(global_symtab[var], name=var)
 
             # Begin codegen of function body
             # for expr in tree_node.body:
@@ -1134,6 +1139,7 @@ def flatten(ast_node):
 #  Main: Program entry point
 # "parse_program" to start the parse
 if __name__ == "__main__":
+
     # Print tokens
     for token in tokens:
         print(token)
@@ -1174,7 +1180,7 @@ if __name__ == "__main__":
         target = llvm.Target.from_default_triple()
         target_machine = target.create_target_machine()
 
-        # Optimize code
+        # Optimize code (levels go from 1 to 3)
         pmb = llvm.create_pass_manager_builder()
         pmb.opt_level = 3
         pm = llvm.create_module_pass_manager()
