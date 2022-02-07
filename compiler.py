@@ -1149,21 +1149,28 @@ if __name__ == "__main__":
     parse_program()
 
     # Parsing done
-    print("\n=== Compiler Report ===\nParsing finished successfully.\nCheck list file for errors (if present).\n")
+    print("\n=== Compiler Report ===\nParsing finished successfully.")
+
+    # Catch errors and notify user
+    if error_present:
+        print("Errors were detected in source code.\nCheck list file for details.\n")
+    else:
+        print("No errors detected in source code.\n")
 
     # Write to list file
     listFile.writelines(line_data)
 
     # Print AST (in a nice way)
-    print("=== AST ===")
-    pretty_tree = list()
-    for node in ast:
-        pretty_tree.append(flatten(node))
-    pp = pprint.PrettyPrinter(indent=2, compact=True)
-    print("PROGRAM \"" + inputFileName + "\"")
-    pp.pprint(pretty_tree)
+    if not error_present:
+        print("=== AST ===")
+        pretty_tree = list()
+        for node in ast:
+            pretty_tree.append(flatten(node))
+        pp = pprint.PrettyPrinter(indent=2, compact=True)
+        print("PROGRAM \"" + inputFileName + "\"")
+        pp.pprint(pretty_tree)
 
-    print("=== END OF AST ===\n")
+        print("=== END OF AST ===\n")
 
     # error_present = True
     # Begin code generation
@@ -1200,7 +1207,7 @@ if __name__ == "__main__":
             codeFile.write(target_machine.emit_assembly(llvmmod))
 
     else:
-        print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!")
+        print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!\n")
 
     # Close all files when done
     inputFile.close()

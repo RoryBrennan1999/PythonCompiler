@@ -1,5 +1,10 @@
-PROGRAM test7;
-VAR  x, y;
-BEGIN
-    WHILE x > 0 BEGIN y := x; END;     <<<< Expected DO, got BEGIN.
+!
+!               Test Program
+!
+PROGRAM test1;
+VAR x, y;
+BEGIN ! start of main
+    WRITE( y, 5 );
+    READ( x );
+    x := 28 + y;
 END.
