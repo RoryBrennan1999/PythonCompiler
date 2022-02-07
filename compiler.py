@@ -1,6 +1,7 @@
 ############################################################
-# Parser for CPL Python Compiler                           #
+# CPL Python Compiler                                      #
 # Parses through the input and generates an AST            #
+# Generates machine code using LLVM from AST               #
 # Written by Rory Brennan [18237606]                       #
 # 31/07/2021                                               #
 ############################################################
@@ -1141,8 +1142,8 @@ def flatten(ast_node):
 if __name__ == "__main__":
 
     # Print tokens
-    for token in tokens:
-        print(token)
+    # for token in tokens:
+    #     print(token)
 
     # Begin parsing (errors will also be inserted to list file when parsing
     parse_program()
@@ -1159,7 +1160,9 @@ if __name__ == "__main__":
     for node in ast:
         pretty_tree.append(flatten(node))
     pp = pprint.PrettyPrinter(indent=2, compact=True)
+    print("PROGRAM \"" + inputFileName + "\"")
     pp.pprint(pretty_tree)
+
     print("=== END OF AST ===\n")
 
     # error_present = True
