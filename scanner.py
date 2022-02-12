@@ -96,11 +96,11 @@ def scanner(code):
             value = float(value) if '.' in value else int(value)
         elif kind == 'ID' and value in keywords:
             kind = value
-        elif kind == 'NEWLINE':  # Move onto next line
+        elif kind == 'NEWLINE' or kind == "COMMENT":  # Move onto next line
             line_start = element.end()  # end() returns the ending position of the match
             line_num += 1  # Iterate position attribute
             continue
-        elif kind == 'SKIP' or kind == "COMMENT":
+        elif kind == 'SKIP':
             continue
         elif kind == 'MISMATCH':  # Throw error if token is not recognised
             raise RuntimeError(f'{value!r} unexpected on line {line_num}')
