@@ -38,6 +38,7 @@ import llvmlite.binding as llvm  # llvmlite for code generation
 from scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 import pprint  # For pretty printing of AST
+from timeit import default_timer as timer # Track compile time
 
 # Open input file for scanning
 try:
@@ -1141,6 +1142,9 @@ def flatten(ast_node):
 # "parse_program" to start the parse
 if __name__ == "__main__":
 
+    # Begin tracking time
+    start = timer()
+
     # Print tokens
     # for token in tokens:
     #     print(token)
@@ -1213,5 +1217,8 @@ if __name__ == "__main__":
     inputFile.close()
     listFile.close()
     codeFile.close()
+
+    end = timer()
+    print("Compile Time: " + str(end - start) + "s\n")
 
     print("=== End of Compiler Report ===")
