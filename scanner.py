@@ -21,12 +21,14 @@ class Token(NamedTuple):  # Tuple class that holds tokens
 try:
     inputFileName = sys.argv[1]
 except IndexError:
-    print("Error. No input file given.")
+    print("Scanner Error. No input file given.")
     sys.exit()
 try:
-    inputFile = open(inputFileName, 'r')
+    # test path directory
+    path = 'tests/' + sys.argv[1]
+    inputFile = open(path, 'r')
 except IOError:
-    print("Error. File does not appear to exist.")
+    print("Scanner Error. File does not appear to exist.")
     sys.exit()
 
 

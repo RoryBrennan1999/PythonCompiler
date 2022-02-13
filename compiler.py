@@ -45,7 +45,9 @@ from timeit import default_timer as timer # Track compile time
 try:
     inputFileName = sys.argv[1]
     try:
-        inputFile = open(inputFileName, 'r')
+        # test path directory
+        path = 'tests/' + sys.argv[1]
+        inputFile = open(path, 'r')
         tokens = scanner(inputFile.read())  # Scan in input as tokens
     except IndexError:
         print("Error. No input file given.")
@@ -71,7 +73,7 @@ except IndexError:
     sys.exit()
 
 # Read in line data for error insertion (must be read in twice which is not ideal memory wise)
-inputFile = open(inputFileName, 'r')
+inputFile = open(path, 'r')
 line_data = inputFile.readlines()
 
 # Global variables used for iterating through tokens array
@@ -1127,7 +1129,7 @@ if __name__ == "__main__":
     # Catch errors and notify user
     if error_present:
         print("Errors were detected in source code.\nCheck list file for details.\n")
-        print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!\n")
+        print("=== ERRORS PRESENT ===\nCode generation not to be initialized till issues resolved!\n")
     else:
         # Print AST (in a nice way) and begin code generation
         # Do not code gen if errors present
