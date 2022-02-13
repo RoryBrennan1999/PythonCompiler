@@ -1219,6 +1219,6 @@ if __name__ == "__main__":
     codeFile.close()
 
     end = timer()
-    print("Compile Time: " + str(end - start) + "s\n")
+    print("Compile/Program Time: " + str(end - start) + "s\n")
 
     print("=== End of Compiler Report ===")
