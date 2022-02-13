@@ -176,7 +176,7 @@ def accept(expected_token):
         if expected_token is not "SEMICOLON":
             line_data[current_token[2] - 1] = line_data[current_token[2] - 1].rstrip(
                 '\n') + f'     <<<< Expected {expected_token}, got {current_token[0]}.\n'
-        else:
+        else: # Fixes problem whereby error message placed on wrong line for missing line ending semicolon
             line_data[current_token[2] - 2] = line_data[current_token[2] - 2].rstrip(
                 '\n') + f'     <<<< Expected {expected_token}, got {current_token[0]}.\n'
         # Set flag when error is encountered
