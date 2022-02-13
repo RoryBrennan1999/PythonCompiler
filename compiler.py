@@ -44,8 +44,12 @@ from timeit import default_timer as timer # Track compile time
 # Open input file for scanning
 try:
     inputFileName = sys.argv[1]
-    inputFile = open(inputFileName, 'r')
-    tokens = scanner(inputFile.read())  # Scan in input as tokens
+    try:
+        inputFile = open(inputFileName, 'r')
+        tokens = scanner(inputFile.read())  # Scan in input as tokens
+    except IndexError:
+        print("Error. No input file given.")
+        sys.exit()
 except IndexError:
     print("Error. No input file given.")
     sys.exit()
