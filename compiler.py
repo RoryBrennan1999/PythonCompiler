@@ -173,8 +173,12 @@ def accept(expected_token):
         print(
             f'Syntax Error! Expected {expected_token}, got {current_token[0]}! Error is found at line {current_token[2]} column {current_token[3]}.')
         # Insert error into list File (rstrip() gets rid of trailing newline)
-        line_data[current_token[2] - 1] = line_data[current_token[2] - 1].rstrip(
-            '\n') + f'     <<<< Expected {expected_token}, got {current_token[0]}.\n'
+        if expected_token is not "SEMICOLON":
+            line_data[current_token[2] - 1] = line_data[current_token[2] - 1].rstrip(
+                '\n') + f'     <<<< Expected {expected_token}, got {current_token[0]}.\n'
+        else:
+            line_data[current_token[2] - 2] = line_data[current_token[2] - 2].rstrip(
+                '\n') + f'     <<<< Expected {expected_token}, got {current_token[0]}.\n'
         # Set flag when error is encountered
         accept.recovering = 1
 
