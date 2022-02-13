@@ -33,6 +33,7 @@ from sets import (
     StatementFBS,
 )
 
+# Package imports and their uses
 import llvmlite.ir as ir  # llvmlite for IR code
 import llvmlite.binding as llvm  # llvmlite for code generation
 from scanner import scanner  # Scanner program
@@ -43,49 +44,37 @@ from timeit import default_timer as timer # Track compile time
 # Open input file for scanning
 try:
     inputFileName = sys.argv[1]
+    inputFile = open(inputFileName, 'r')
+    tokens = scanner(inputFile.read())  # Scan in input as tokens
 except IndexError:
     print("Error. No input file given.")
     sys.exit()
-try:
-    inputFile = open(inputFileName, 'r')
-    tokens = scanner(inputFile.read())  # Scan in input as tokens
-except IOError:
-    print("Error. Input File does not appear to exist.")
-    sys.exit()
-
-# Global variables used for iterating through tokens array
-token_index = 0
-current_token = tokens[token_index]
-
-# Read in line data for error insertion (must be read in twice which is not ideal memory wise)
-inputFile = open(inputFileName, 'r')
-line_data = inputFile.readlines()
 
 # Open list file for writing
 try:
     listFileName = sys.argv[2]
+    listFile = open(listFileName, 'w')
 except IndexError:
     print("Error. No list file given.")
-    sys.exit()
-try:
-    listFile = open(listFileName, 'w')
-except IOError:
-    print("Error. List File does not appear to exist.")
     sys.exit()
 
 # Open code file for writing
 try:
     codeFileName = sys.argv[3]
+    codeFile = open(codeFileName, 'w')
 except IndexError:
     print("Error. No code file given.")
     sys.exit()
-try:
-    codeFile = open(codeFileName, 'w')
-except IOError:
-    print("Error. Code File does not appear to exist.")
-    sys.exit()
 
-# Abstract Syntax Tree for input program
+# Read in line data for error insertion (must be read in twice which is not ideal memory wise)
+inputFile = open(inputFileName, 'r')
+line_data = inputFile.readlines()
+
+# Global variables used for iterating through tokens array
+token_index = 0
+current_token = tokens[token_index]
+
+# Abstract Syntax Tree for input program (basic Python list)
 ast = []
 
 # arguments global array for function/write parameters
@@ -102,7 +91,7 @@ final_func_block = FunctionAST(None, None, None, None)
 if_object = IfExprAST(None, None, None)
 while_object = WhileExprAST(None, None)
 
-# global flag to signal that parser is in write call/function
+# global flags
 func_flag = False
 if_then_flag = False
 if_else_flag = False
@@ -114,6 +103,18 @@ scope = 0
 # Global flag to signal that parser encountered an error
 error_present = False
 
+# Helper function to parse flags and so append correct position in AST
+def append_to_ast(object):
+    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
+        function_proto_body.body.append(object)
+    elif func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
+        final_func_block.body.append(object)
+    elif if_then_flag:
+        if_object.then_bl.append(object)
+    elif if_else_flag:
+        if_object.else_bl.append(object)
+    elif while_flag:
+        while_object.body.append(object)
 
 # Reads in the next token by advancing token index
 def get_token():
@@ -417,16 +418,7 @@ def parse_proc_call_list(identifier):
     arguments = list(func_write_args)
 
     # Append function call onto AST
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
-        function_proto_body.body.append(CallExprAST(identifier, arguments))
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
-        final_func_block.body.append(CallExprAST(identifier, arguments))
-    elif if_then_flag:
-        if_object.then_bl.append(CallExprAST(identifier, arguments))
-    elif if_else_flag:
-        if_object.else_bl.append(CallExprAST(identifier, arguments))
-    elif while_flag:
-        while_object.body.append(CallExprAST(identifier, arguments))
+    append_to_ast(CallExprAST(identifier, arguments))
 
     # End of argument parsing
     arg_flag = False
@@ -493,16 +485,7 @@ def parse_assignment(identifier):
             args = [NumberExprAST(-1 * int(temp_token[1]))]
 
     # Append binary assignment onto AST
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
-        function_proto_body.body.append(BinaryAssignAST(identifier, args))
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
-        final_func_block.body.append(BinaryAssignAST(identifier, args))
-    elif if_then_flag:
-        if_object.then_bl.append(BinaryAssignAST(identifier, args))
-    elif if_else_flag:
-        if_object.else_bl.append(BinaryAssignAST(identifier, args))
-    elif while_flag:
-        while_object.body.append(BinaryAssignAST(identifier, args))
+    append_to_ast(BinaryAssignAST(identifier, args))
 
     neg_flag = False
 
@@ -515,16 +498,7 @@ def parse_rest_of_statement(temp_token):
         parse_assignment(temp_token)
     elif current_token[0] == "SEMICOLON":
         # Append function call onto AST
-        if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
-            function_proto_body.body.append(CallExprASTNP(temp_token))
-        elif func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
-            final_func_block.body.append(CallExprASTNP(temp_token))
-        elif if_then_flag:
-            if_object.then_bl.append(CallExprASTNP(temp_token))
-        elif if_else_flag:
-            if_object.else_bl.append(CallExprASTNP(temp_token))
-        elif while_flag:
-            while_object.body.append(CallExprASTNP(temp_token))
+        append_to_ast(CallExprASTNP(temp_token))
 
 
 # Parse simple statement
@@ -558,14 +532,7 @@ def parse_while():
     while_flag = False
 
     # Insert into AST/ function body
-    if func_flag and not if_then_flag and not if_else_flag and scope > 1:
-        function_proto_body.body.append(WhileExprAST(while_object.cond, while_object.body))
-    elif func_flag and not if_then_flag and not if_else_flag and scope <= 1:
-        final_func_block.body.append(WhileExprAST(while_object.cond, while_object.body))
-    elif if_then_flag:
-        if_object.then_bl.append(WhileExprAST(while_object.cond, while_object.body))
-    elif if_else_flag:
-        if_object.else_bl.append(WhileExprAST(while_object.cond, while_object.body))
+    append_to_ast(WhileExprAST(while_object.cond, while_object.body))
 
 
 # Parse IF block
@@ -601,14 +568,10 @@ def parse_if():
         accept("ELSE")
         parse_block()
 
-    if func_flag and not while_flag and scope > 1:
-        function_proto_body.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
-    elif func_flag and not while_flag and scope <= 1:
-        final_func_block.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
-    elif while_flag:
-        while_object.body.append(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
-
     if_else_flag = False
+
+    # Append function call onto AST
+    append_to_ast(IfExprAST(if_object.cond, if_object.then_bl, if_object.else_bl))
 
 
 # Parse READ block
@@ -627,17 +590,8 @@ def parse_read():
         arguments.append(VariableExprAST(current_token[1]))
         accept("IDENTIFIER")
 
-    # Insert into AST/ function body
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
-        function_proto_body.body.append(ReadExprAST("READ", arguments))
-    elif func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
-        final_func_block.body.append(ReadExprAST("READ", arguments))
-    elif if_then_flag:
-        if_object.then_bl.append(ReadExprAST("READ", arguments))
-    elif if_else_flag:
-        if_object.else_bl.append(ReadExprAST("READ", arguments))
-    elif while_flag:
-        while_object.body.append(ReadExprAST("READ", arguments))
+    # # Insert into AST/ function body
+    append_to_ast(ReadExprAST("READ", arguments))
 
     # End of read statement
     accept("RIGHTPARENTHESIS")
@@ -673,16 +627,7 @@ def parse_write():
 
     # Insert into AST or function body
     arguments = list(func_write_args)
-    if func_flag and not if_then_flag and not if_else_flag and not while_flag and scope > 1:
-        function_proto_body.body.append(WriteExprAST("WRITE", arguments))
-    elif func_flag and not if_then_flag and not if_else_flag and not while_flag and scope <= 1:
-        final_func_block.body.append(WriteExprAST("WRITE", arguments))
-    elif if_then_flag:
-        if_object.then_bl.append(WriteExprAST("WRITE", arguments))
-    elif if_else_flag:
-        if_object.else_bl.append(WriteExprAST("WRITE", arguments))
-    elif while_flag:
-        while_object.body.append(WriteExprAST("WRITE", arguments))
+    append_to_ast(WriteExprAST("WRITE", arguments))
 
     # End of write statement
     accept("RIGHTPARENTHESIS")
@@ -916,7 +861,7 @@ def LLVMbackend():
             elif tree_node.op == "LESSEQUAL":
                 return current_builder.fcmp_ordered("<=", lhs, rhs, "lesseqtmp")
             else:
-                raise CodegenError('Unknown binary operator', node.op)
+                raise CodegenError('Unknown binary operator', tree_node.op)
         # Assignment operations
         elif isinstance(tree_node, BinaryAssignAST):
             rhs_val = None
@@ -960,8 +905,6 @@ def LLVMbackend():
                 callee_func = module.get_global(tree_node.callee)
             except:
                 raise CodegenError('Call to unknown function', tree_node.callee)
-            if callee_func is None or not isinstance(callee_func, ir.Function):
-                raise CodegenError('Call to unknown function', node.callee)
             # Emit call instruction
             null_arg = [ir.Constant(double, "0")]
             current_builder.call(callee_func, null_arg, "calltmp")
@@ -1008,6 +951,7 @@ def LLVMbackend():
             # Conditional
             cond_val = codegen(tree_node.cond, current_builder)
 
+            # Define while body block and while after block
             w_body_block = current_builder.append_basic_block("while_body")
             w_after_block = current_builder.append_basic_block("while_end")
 
@@ -1039,7 +983,7 @@ def LLVMbackend():
             current_builder = ir.IRBuilder(block)
 
             # All local variables are stored here
-            locals = {}
+            # locals = {}
 
             # vars = ChainMap(locals, global_symtab)
 
@@ -1089,6 +1033,7 @@ def LLVMbackend():
     for ast_node in ast:
         codegen(ast_node, builder)
 
+    # Return IR module string
     return module
 
 
@@ -1137,6 +1082,22 @@ def flatten(ast_node):
     else:
         raise TypeError('Unknown type in flatten()')
 
+# Uses pprint to print out nested list in indented fashion
+def pprint_ast(AST):
+
+    print("=== AST ===")
+    pretty_tree = list()
+
+    for node in AST:
+        pretty_tree.append(flatten(node))
+
+    pp = pprint.PrettyPrinter(indent=2, compact=True)
+
+    print("PROGRAM \"" + inputFileName + "\"")
+
+    pp.pprint(pretty_tree)
+
+    print("=== END OF AST ===\n")
 
 #  Main: Program entry point
 # "parse_program" to start the parse
@@ -1158,27 +1119,14 @@ if __name__ == "__main__":
     # Catch errors and notify user
     if error_present:
         print("Errors were detected in source code.\nCheck list file for details.\n")
+        print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!\n")
     else:
+        # Print AST (in a nice way) and begin code generation
+        # Do not code gen if errors present
         print("No errors detected in source code.\n")
+        pprint_ast(ast)
 
-    # Write to list file
-    listFile.writelines(line_data)
-
-    # Print AST (in a nice way)
-    if not error_present:
-        print("=== AST ===")
-        pretty_tree = list()
-        for node in ast:
-            pretty_tree.append(flatten(node))
-        pp = pprint.PrettyPrinter(indent=2, compact=True)
-        print("PROGRAM \"" + inputFileName + "\"")
-        pp.pprint(pretty_tree)
-
-        print("=== END OF AST ===\n")
-
-    # error_present = True
-    # Begin code generation
-    if not error_present:  # Do not generate code if errors present
+        # Initialize binding layer
         llvm.initialize()
         llvm.initialize_native_target()
         llvm.initialize_native_asmprinter()
@@ -1202,7 +1150,11 @@ if __name__ == "__main__":
         pm.run(llvmmod)
 
         with llvm.create_mcjit_compiler(llvmmod, target_machine) as ee:
+
+            # Finalize object and make it executable
             ee.finalize_object()
+            ee.run_static_constructors()
+
             # print('=== Optimized Machine Code ===')
             # print(target_machine.emit_assembly(llvmmod))
             # print('=== End of Machine Code ===')
@@ -1210,8 +1162,8 @@ if __name__ == "__main__":
             # Write to machine code file
             codeFile.write(target_machine.emit_assembly(llvmmod))
 
-    else:
-        print("=== ERRORS PRESENT ===\n Code generation not to be initialized till issues resolved!\n")
+    # Write to list file
+    listFile.writelines(line_data)
 
     # Close all files when done
     inputFile.close()
