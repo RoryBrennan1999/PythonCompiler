@@ -1,0 +1,14 @@
+PROGRAM fib;
+VAR x;
+PROCEDURE fib( n );
+    BEGIN
+        IF n <= 0 THEN
+        BEGIN
+        END
+        ELSE BEGIN
+             fib( n - 1 );
+        END;
+    END;
+BEGIN
+    fib( 10 );
+END.
