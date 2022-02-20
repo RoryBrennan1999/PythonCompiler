@@ -113,6 +113,8 @@ def LLVMbackend():
                 return current_builder.fcmp_ordered(">", lhs, rhs, "greatertmp")
             elif tree_node.op == "LESSEQUAL":
                 return current_builder.fcmp_ordered("<=", lhs, rhs, "lesseqtmp")
+            elif tree_node.op == "EQUALITY":
+                return current_builder.fcmp_ordered("==", lhs, rhs, "eqtmp")
             else:
                 raise CodegenError('Unknown binary operator', tree_node.op)
         # Assignment operations

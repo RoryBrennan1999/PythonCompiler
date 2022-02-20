@@ -9,4 +9,4 @@ StatementFS_aug = ["IDENTIFIER", "WHILE", "IF", "READ", "WRITE", "END"]
 StatementFBS = ["SEMICOLON", "ELSE", "ENDOFPROGRAM", "ENDOFINPUT"]
 
 # Global list of operators
-operators = ["MULTIPLY", "ADD", "SUBTRACT", "DIVIDE", "LESSEQUAL", "GREATEREQUAL", "LESS", "GREATER"]
+operators = ["MULTIPLY", "ADD", "SUBTRACT", "DIVIDE", "LESSEQUAL", "GREATEREQUAL", "LESS", "GREATER", "EQUALITY"]
