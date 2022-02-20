@@ -35,6 +35,9 @@ from sets import (
 from scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 
+# Config has global flag to signal to compiler that errors were encountered
+import config
+
 # Open input file for scanning
 try:
     inputFileName = sys.argv[1]
@@ -91,9 +94,6 @@ while_flag = False
 arg_flag = False
 neg_flag = False
 scope = 0
-
-# Global flag to signal that parser encountered an error
-error_present = False
 
 # Helper function to parse flags and so append correct position in AST
 def append_to_ast(object):
@@ -156,8 +156,7 @@ def accept(expected_token):
     if current_token[0] == expected_token:
         get_token()
     else:  # Display error message
-        global error_present
-        error_present = True
+        config.error_present = True
         print(
             f'Syntax Error! Expected {expected_token}, got {current_token[0]}! Error is found at line {current_token[2]} column {current_token[3]}.')
         # Insert error into list File (rstrip() gets rid of trailing newline)

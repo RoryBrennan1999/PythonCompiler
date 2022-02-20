@@ -24,12 +24,14 @@ from ast_objects import (
 from flatten import pprint_ast
 
 # Import parser
-from parser_rd import parse_program, ast, error_present, line_data, inputFileName, listFile, inputFile
+from parser_rd import parse_program, ast, line_data, inputFileName, listFile, inputFile
+
+# Config has global flag to signal to compiler that errors were encountered
+import config
 
 # Package imports and their uses
 import llvmlite.ir as ir  # llvmlite for IR code
 import llvmlite.binding as llvm  # llvmlite for code generation
-from scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 from timeit import default_timer as timer # Track compile time
 
@@ -310,7 +312,7 @@ if __name__ == "__main__":
     print("\n=== Compiler Report ===\nParsing finished successfully.")
 
     # Catch errors and notify user
-    if error_present:
+    if config.error_present:
         print("Errors were detected in source code.\nCheck list file for details.\n")
         print("=== ERRORS PRESENT ===\nCode generation not to be initialized till issues resolved!\n")
     else:
@@ -337,7 +339,7 @@ if __name__ == "__main__":
 
         # Optimize code (levels go from 1 to 3)
         pmb = llvm.create_pass_manager_builder()
-        pmb.opt_level = 3
+        pmb.opt_level = config.opt_level
         pm = llvm.create_module_pass_manager()
         pmb.populate(pm)
         pm.run(llvmmod)
