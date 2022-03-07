@@ -1,13 +1,12 @@
 ############################################################
 # Scanner for CPL Python Compiler                          #
 # Uses the re module to generate an efficient scanner      #
-# Written by Rory Brennan 18237606                         #
+# Written by Rory Brennan [18237606]                       #
 # 28/07/2021                                               #
 ############################################################
 
 from typing import NamedTuple  # Used for tuple tokens
 import re  # Used for regex
-import sys  # Used for CLI arguments
 
 
 class Token(NamedTuple):  # Tuple class that holds tokens
@@ -15,22 +14,6 @@ class Token(NamedTuple):  # Tuple class that holds tokens
     value: str
     line: int
     column: int
-
-
-# Open input file for scanning
-try:
-    inputFileName = sys.argv[1]
-except IndexError:
-    print("Scanner Error. No input file given.")
-    sys.exit()
-try:
-    # test path directory
-    path = 'tests/' + sys.argv[1]
-    inputFile = open(path, 'r')
-except IOError:
-    print("Scanner Error. File does not appear to exist.")
-    sys.exit()
-
 
 # Scanner function that analyzes code to categorize characters
 def scanner(code):
@@ -110,6 +93,3 @@ def scanner(code):
 
     return tokens  # return tokens array
 
-
-# Close input file when done
-inputFile.close()

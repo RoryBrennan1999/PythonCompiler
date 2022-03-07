@@ -6,7 +6,7 @@
 ############################################################
 
 # AST nodes
-from ast_objects import (
+from ast import (
     NumberExprAST,
     VariableExprAST,
     ReadExprAST,
@@ -19,7 +19,7 @@ from ast_objects import (
     IfExprAST,
     WhileExprAST)
 
-# Error resynchronisation sets
+# Error resynchronisation sets (and operator list for matching)
 from sets import (
     operators,  # List of operator keywords
     ProgramFS1_aug,
@@ -770,3 +770,10 @@ def parse_program():
 
     # '.' has name ENDOFPROGRAM
     accept("ENDOFPROGRAM")
+
+    # Write to list file
+    listFile.writelines(line_data)
+
+    # Close files when done parsing
+    inputFile.close()
+    listFile.close()
