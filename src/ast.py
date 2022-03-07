@@ -1,9 +1,12 @@
-# Abstract Syntax Tree (AST) objects.
-# This file defines classes for different kinds of nodes of an Abstract
-# Syntax Tree.  During parsing, you will create these nodes and connect
-# them together.  In general, you will have a different AST node for
-# each kind of grammar rule.
-# Written by Rory Brennan [18237606]
+############################################################
+# Abstract Syntax Tree (AST) objects.                      #
+# This file defines classes for different kinds            #
+# of nodes of an Abstract Syntax Tree.                     #
+# During parsing, you will create these nodes and connect  #
+# them together.  In general, you will have a              #
+# different AST node for each kind of grammar rule.        #
+# Written by Rory Brennan [18237606]                       #
+############################################################
 
 import pprint  # For pretty printing of AST
 from abc import ABC

@@ -1,7 +1,10 @@
-# Error resync sets.
-# This file defines the synchronisation sets needed when handling errors
-# Also includes a helpful list of CPL arithmetic operators
-# Written by Rory Brennan [18237606]
+############################################################
+# Error resync sets.                                       #
+# This file defines the synchronisation sets               #
+# needed when handling errors. It also includes a          #
+# helpful list of CPL arithmetic operators                 #
+# Written by Rory Brennan [18237606]                       #
+############################################################
 
 # Synchronise sets
 ProgramFS1_aug = ["VAR", "PROCEDURE", "BEGIN"]
