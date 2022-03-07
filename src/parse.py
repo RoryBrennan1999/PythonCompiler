@@ -6,7 +6,7 @@
 ############################################################
 
 # AST nodes
-from ast import (
+from src.ast import (
     NumberExprAST,
     VariableExprAST,
     ReadExprAST,
@@ -20,7 +20,7 @@ from ast import (
     WhileExprAST)
 
 # Error resynchronisation sets (and operator list for matching)
-from sets import (
+from src.sets import (
     operators,  # List of operator keywords
     ProgramFS1_aug,
     ProgramFS2_aug,
@@ -32,11 +32,11 @@ from sets import (
     StatementFBS,
 )
 
-from scanner import scanner  # Scanner program
+from src.scanner import scanner  # Scanner program
 import sys  # Used for CLI arguments
 
 # Config has global flag to signal to compiler that errors were encountered
-import config
+from src import config
 
 # Open input file for scanning
 try:

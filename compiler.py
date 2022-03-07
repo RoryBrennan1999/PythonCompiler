@@ -2,12 +2,13 @@
 # Code Generator for CPL Python Compiler                   #
 # Takes AST from parser and generates                      #
 # machine code using llvmlite                              #
+# This also the main program entry point                   #
 # Written by Rory Brennan [18237606]                       #
 # 02/09/2021                                               #
 ############################################################
 
 # AST nodes and helper print functions
-from ast import (
+from src.ast import (
     NumberExprAST,
     VariableExprAST,
     ReadExprAST,
@@ -22,11 +23,11 @@ from ast import (
     pprint_ast)
 
 # Import parser (including AST, list file data, input and output files)
-from parse import parse_program, ast, inputFileName
+from src.parse import parse_program, ast, inputFileName
 
 # Config has global flag to signal to compiler that errors were encountered
 # and desired optimization level
-import config
+from src import config
 
 # Package imports and their uses
 import llvmlite.ir as ir  # llvmlite for IR code
