@@ -360,7 +360,7 @@ def compile():
 
     # Calculate and display compile time
     end = timer()
-    print("Compile/Program Time: " + str(end - start) + "s\n")
+    print("Compile/Program Time: %.4f seconds\n" % (end - start))
 
     # End of program
     print("=== End of Compiler Report ===")
