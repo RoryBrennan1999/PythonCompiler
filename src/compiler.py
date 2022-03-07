@@ -292,9 +292,9 @@ def LLVMbackend():
     return module
 
 
-#  Main: Program entry point
-# "parse_program" to start the parse
-if __name__ == "__main__":
+# Main compiler entry point
+# Called from cpl.py
+def compile():
 
     # Begin tracking time
     start = timer()
