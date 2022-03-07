@@ -6,8 +6,8 @@
 # 02/09/2021                                               #
 ############################################################
 
-# AST nodes
-from ast_objects import (
+# AST nodes and helper print functions
+from ast import (
     NumberExprAST,
     VariableExprAST,
     ReadExprAST,
@@ -18,22 +18,21 @@ from ast_objects import (
     CallExprAST,
     CallExprASTNP,
     IfExprAST,
-    WhileExprAST)
+    WhileExprAST,
+    pprint_ast)
 
-# Flatten function for printing AST
-from flatten import pprint_ast
-
-# Import parser
-from parser_rd import parse_program, ast, line_data, inputFileName, listFile, inputFile
+# Import parser (including AST, list file data, input and output files)
+from parse import parse_program, ast, inputFileName
 
 # Config has global flag to signal to compiler that errors were encountered
+# and desired optimization level
 import config
 
 # Package imports and their uses
 import llvmlite.ir as ir  # llvmlite for IR code
 import llvmlite.binding as llvm  # llvmlite for code generation
 import sys  # Used for CLI arguments
-from timeit import default_timer as timer # Track compile time
+from timeit import default_timer as timer # Tracking compile time
 
 # Open code file for writing
 try:
@@ -43,6 +42,7 @@ except IndexError:
     print("Error. No code file given.")
     sys.exit()
 
+# Define code generation error
 class CodegenError(Exception):
     pass
 
@@ -70,9 +70,9 @@ def LLVMbackend():
     global_symtab = {}
     outer_locals = []
 
-    # Create IR function READ and WRITE object
-    read_func = ir.Function(module, read_type, name="READ")
-    write_func = ir.Function(module, write_type, name="WRITE")
+    # Create IR function READ and WRITE object (built in types)
+    read_func = ir.Function(module, read_type, name="read")
+    write_func = ir.Function(module, write_type, name="write")
 
     # Inner Function that actually generates code using AST
     def codegen(tree_node, current_builder):
@@ -83,14 +83,19 @@ def LLVMbackend():
                 global_symtab[tree_node.val] = var
             else:
                 global_symtab[tree_node.val] = current_builder.alloca(double, name=tree_node.val)
+
         # Code generation for binary expressions
         elif isinstance(tree_node, BinaryExprAST):
+
+            # Parse left hand side
             if isinstance(tree_node.lhs, NumberExprAST):
                 lhs = ir.Constant(double, float(tree_node.lhs.val))
             elif isinstance(tree_node.lhs, VariableExprAST):
                 lhs = current_builder.load(global_symtab[tree_node.lhs.val], name=tree_node.lhs.val)
             elif isinstance(tree_node.lhs, BinaryExprAST):  # Recursive (expressions inside expressions)
                 lhs = codegen(tree_node.lhs, current_builder)
+
+            # Parse right hand side
             if isinstance(tree_node.rhs, NumberExprAST):
                 rhs = ir.Constant(double, float(tree_node.rhs.val))
             elif isinstance(tree_node.rhs, VariableExprAST):
@@ -119,6 +124,7 @@ def LLVMbackend():
                 return current_builder.fcmp_ordered("==", lhs, rhs, "eqtmp")
             else:
                 raise CodegenError('Unknown binary operator', tree_node.op)
+
         # Assignment operations
         elif isinstance(tree_node, BinaryAssignAST):
             rhs_val = None
@@ -131,6 +137,7 @@ def LLVMbackend():
                     rhs_val = codegen(arg, current_builder)
             # Store result in memory
             current_builder.store(rhs_val, global_symtab[tree_node.identifier])
+
         # Code generation for Write calls (equivalent to assignment calls)
         elif isinstance(tree_node, WriteExprAST):
             # Parse args
@@ -144,6 +151,7 @@ def LLVMbackend():
                     call_args.append(codegen(expr, current_builder))
             # Emit call instruction
             current_builder.call(write_func, call_args, "calltmp")
+
         # Code generation for Read calls
         elif isinstance(tree_node, ReadExprAST):
             # Parse args
@@ -155,6 +163,7 @@ def LLVMbackend():
                     call_args.append(codegen(expr, current_builder))
             # Emit call instruction
             current_builder.call(read_func, call_args, "calltmp")
+
         # Code generation for function calls (No parameters)
         elif isinstance(tree_node, CallExprASTNP):
             # Try to call function, if it doesnt exist raise an error
@@ -165,6 +174,7 @@ def LLVMbackend():
             # Emit call instruction
             null_arg = [ir.Constant(double, "0")]
             current_builder.call(callee_func, null_arg, "calltmp")
+
         # Code generation for function calls (No parameters)
         elif isinstance(tree_node, CallExprAST):
             # Try to call function, if it doesnt exist raise an error
@@ -185,6 +195,7 @@ def LLVMbackend():
                     call_args.append(codegen(expr, current_builder))
             # Emit call instruction
             current_builder.call(callee_func, call_args, "calltmp")
+
         # Code generation for IF blocks
         elif isinstance(tree_node, IfExprAST):
             # Conditional
@@ -203,6 +214,7 @@ def LLVMbackend():
                 current_builder.if_then(cond_val)
                 for elem in tree_node.then_bl:
                     codegen(elem, current_builder)
+
         # Code generation for WHILE blocks
         elif isinstance(tree_node, WhileExprAST):
             # Conditional
@@ -212,7 +224,7 @@ def LLVMbackend():
             w_body_block = current_builder.append_basic_block("while_body")
             w_after_block = current_builder.append_basic_block("while_end")
 
-            # head
+            # head (conditional branch)
             current_builder.cbranch(cond_val, w_body_block, w_after_block)
 
             # body
@@ -235,14 +247,11 @@ def LLVMbackend():
             else:
                 func = ir.Function(module, main_func_type, name=tree_node.proto)
 
+            # Append entry block
             block = func.append_basic_block("entry")
+
             # Update current builder
             current_builder = ir.IRBuilder(block)
-
-            # All local variables are stored here
-            # locals = {}
-
-            # vars = ChainMap(locals, global_symtab)
 
             # Allocate arguments
             if tree_node.args is not None:
@@ -266,24 +275,12 @@ def LLVMbackend():
                     current_builder.load(global_symtab[var], name=var)
 
             # Begin codegen of function body
-            # for expr in tree_node.body:
-            #     if isinstance(expr, FunctionAST):
-            #         func_block = func.append_basic_block(name=expr.proto)
-            #         # Update current builder
-            #         current_builder = ir.IRBuilder(func_block)
-            #         [codegen(expr, current_builder) for expr in expr.locals]
-            #         [codegen(expr, current_builder) for expr in expr.body]
-            #         current_builder.ret_void()
-            #     else:
-            #         current_builder = ir.IRBuilder(block)
-            #         codegen(expr, current_builder)
-
             [codegen(expr, current_builder) for expr in tree_node.body]
 
-            # return void
+            # return void (CPL functions always return void)
             current_builder.ret_void()
 
-        # Exit
+        # Exit code generator
         return 0
 
     # Loop through ast and compile
@@ -357,12 +354,7 @@ if __name__ == "__main__":
             # Write to machine code file
             codeFile.write(target_machine.emit_assembly(llvmmod))
 
-    # Write to list file
-    listFile.writelines(line_data)
-
-    # Close all files when done
-    inputFile.close()
-    listFile.close()
+    # Close code file when done writing
     codeFile.close()
 
     # Calculate and display compile time
