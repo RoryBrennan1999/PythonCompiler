@@ -332,7 +332,7 @@ def compile():
         # Print IR module
         codegen_module = LLVMbackend()
         color_print('=== LLVM IR ===', color='cyan')
-        print(str(codegen_module))
+        print(str(codegen_module).rstrip('\n'))
         color_print('=== END OF IR ===\n', color='cyan')
 
         # Parse to assembly file and verify correctness
