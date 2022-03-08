@@ -142,7 +142,6 @@ def flatten(ast_node):
 # Uses pprint to print out nested list in indented fashion
 def pprint_ast(AST, inputFileName):
 
-    print("=== AST ===")
     pretty_tree = list()
 
     for node in AST:
@@ -153,5 +152,3 @@ def pprint_ast(AST, inputFileName):
     print("PROGRAM \"" + inputFileName + "\"")
 
     pp.pprint(pretty_tree)
-
-    print("=== END OF AST ===\n")

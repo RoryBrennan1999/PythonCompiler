@@ -34,6 +34,7 @@ import llvmlite.ir as ir  # llvmlite for IR code
 import llvmlite.binding as llvm  # llvmlite for code generation
 import sys  # Used for CLI arguments
 from timeit import default_timer as timer # Tracking compile time
+from lazyme.string import color_print # Adding colour to compiler report
 
 # Open code file for writing
 try:
@@ -307,17 +308,21 @@ def compile():
     parse_program()
 
     # Parsing done
-    print("\n=== Compiler Report ===\nParsing finished successfully.")
+    color_print("\n=== Compiler Report ===", color='blue', bold=True)
+    color_print("Parsing finished successfully.", color='green')
 
     # Catch errors and notify user
     if config.error_present:
-        print("Errors were detected in source code.\nCheck list file for details.\n")
-        print("=== ERRORS PRESENT ===\nCode generation not to be initialized till issues resolved!\n")
+        color_print("Errors were detected in source code.\nCheck list file for details.\n", color='red')
+        color_print("=== ERRORS PRESENT ===", color='red', bold=True)
+        color_print("Code generation not to be initialized till issues resolved!\n", underline=True)
     else:
         # Print AST (in a nice way) and begin code generation
         # Do not code gen if errors present
-        print("No errors detected in source code.\n")
+        color_print("No errors detected in source code.\n", color='green')
+        color_print("=== AST ===", color='pink')
         pprint_ast(ast, inputFileName)
+        color_print("=== END OF AST ===\n", color='pink')
 
         # Initialize binding layer
         llvm.initialize()
@@ -326,9 +331,9 @@ def compile():
 
         # Print IR module
         codegen_module = LLVMbackend()
-        print('=== LLVM IR ===')
+        color_print('=== LLVM IR ===', color='cyan')
         print(str(codegen_module))
-        print('=== END OF IR ===\n')
+        color_print('=== END OF IR ===\n', color='cyan')
 
         # Parse to assembly file and verify correctness
         llvmmod = llvm.parse_assembly(str(codegen_module))
@@ -361,7 +366,7 @@ def compile():
 
     # Calculate and display compile time
     end = timer()
-    print("Compile/Program Time: %.4f seconds\n" % (end - start))
+    color_print("Compile/Program Time: %.4f seconds\n" % (end - start), color='yellow')
 
     # End of program
-    print("=== End of Compiler Report ===")
+    color_print("=== End of Compiler Report ===", color='blue', bold=True)
