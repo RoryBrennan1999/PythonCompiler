@@ -330,8 +330,9 @@ def compile():
         print(str(codegen_module))
         print('=== END OF IR ===\n')
 
-        # Print machine code
+        # Parse to assembly file and verify correctness
         llvmmod = llvm.parse_assembly(str(codegen_module))
+        llvmmod.verify()
         target = llvm.Target.from_default_triple()
         target_machine = target.create_target_machine()
 
