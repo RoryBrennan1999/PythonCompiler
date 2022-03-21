@@ -326,8 +326,8 @@ def compile():
 
         # Initialize binding layer
         llvm.initialize()
-        llvm.initialize_native_target()
-        llvm.initialize_native_asmprinter()
+        llvm.initialize_all_targets()
+        llvm.initialize_all_asmprinters()
 
         # Print IR module
         codegen_module = LLVMbackend()
@@ -338,6 +338,7 @@ def compile():
         # Parse to assembly file and verify correctness
         llvmmod = llvm.parse_assembly(str(codegen_module))
         llvmmod.verify()
+        #target = llvm.Target.from_triple("mips-pc-windows-msvc") # MIPS target
         target = llvm.Target.from_default_triple()
         target_machine = target.create_target_machine()
 
